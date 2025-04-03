@@ -1295,7 +1295,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from openai import OpenAI
 
 # Initialize OpenAI client
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = st.secrets["openai"]["api_key"]
 GPT_MODEL = "gpt-4o"  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 EMBEDDING_MODEL = "text-embedding-3-small"
 

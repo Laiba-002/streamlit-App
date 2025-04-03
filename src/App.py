@@ -1052,7 +1052,8 @@ st.set_page_config(
 )
 
 # OpenAI client
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client= st.secrets["openai"]["api_key"]
+# client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 GPT_MODEL = "gpt-4o"  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 
 # Initialize session state variables
@@ -1266,7 +1267,8 @@ with st.sidebar:
     st.header("Connection Settings")
     
     # Check OpenAI API key
-    api_key = os.environ.get("OPENAI_API_KEY")
+    # api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = st.secrets["openai"]["api_key"]
     if api_key:
         st.success("OpenAI API Key is configured")
     else:

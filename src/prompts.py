@@ -847,9 +847,11 @@
 
 import os
 from openai import OpenAI
+import streamlit as st
 
 # Initialize OpenAI client
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = st.secrets["openai"]["api_key"]
 GPT_MODEL = "gpt-4o"  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 
 def call_openai(prompt, system_prompt="You are a helpful assistant.", conversation_history=None):
