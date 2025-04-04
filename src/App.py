@@ -52,21 +52,6 @@ if 'table_name' not in st.session_state:
 if 'schema_columns' not in st.session_state:
     st.session_state.schema_columns = []  # To track schema changes
 
-# Snowflake Connection Functions
-# def init_snowflake_connection():
-#     try:
-#         conn = snowflake.connector.connect(
-#             user=st.session_state.snowflake_user,
-#             password=st.session_state.snowflake_password,
-#             account=st.session_state.snowflake_account,
-#             warehouse=st.session_state.snowflake_warehouse,
-#             database='O3_DEV_DB',
-#             schema='O3_DEV_RAW_SCH'
-#         )
-#         return conn
-#     except Exception as e:
-#         st.error(f"Error connecting to Snowflake: {e}")
-#         return None
 
 # Snowflake Connection Functions
 def init_snowflake_connection():
@@ -256,8 +241,6 @@ with st.sidebar:
     st.header("Connection Settings")
     
     # Check OpenAI API key
-    # api_key = os.environ.get("OPENAI_API_KEY")
-    # api_key = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     api_key = st.secrets.get("OPENAI_API_KEY")
     if api_key:
         st.success("OpenAI API Key is configured")
@@ -294,24 +277,6 @@ with st.sidebar:
     
     st.header("Snowflake Connection")
     
-    # if not st.session_state.initialized:
-    #     st.session_state.snowflake_user = st.text_input("Snowflake Username")
-    #     st.session_state.snowflake_password = st.text_input("Snowflake Password", type="password")
-    #     st.session_state.snowflake_account = st.text_input("Snowflake Account")
-    #     st.session_state.snowflake_warehouse = st.text_input("Snowflake Warehouse")
-        
-    #     connect_button = st.button("Connect")
-        
-    #     if connect_button:
-    #         # Verify API key
-    #         if not api_key:
-    #             st.error("Please provide an OpenAI API key before connecting")
-    #             st.stop()
-                
-    #         # Now connect to Snowflake
-    #         conn = init_snowflake_connection()
-    #         if conn:
-    #             st.success("Connected to Snowflake!")
 
     # Check Snowflake credentials
     snowflake_creds = st.secrets.get("snowflake")
