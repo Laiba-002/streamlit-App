@@ -24,7 +24,8 @@ st.set_page_config(
 )
 
 # OpenAI client
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 GPT_MODEL = "gpt-4o"  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 
 # Initialize session state variables
@@ -52,13 +53,29 @@ if 'schema_columns' not in st.session_state:
     st.session_state.schema_columns = []  # To track schema changes
 
 # Snowflake Connection Functions
+# def init_snowflake_connection():
+#     try:
+#         conn = snowflake.connector.connect(
+#             user=st.session_state.snowflake_user,
+#             password=st.session_state.snowflake_password,
+#             account=st.session_state.snowflake_account,
+#             warehouse=st.session_state.snowflake_warehouse,
+#             database='O3_DEV_DB',
+#             schema='O3_DEV_RAW_SCH'
+#         )
+#         return conn
+#     except Exception as e:
+#         st.error(f"Error connecting to Snowflake: {e}")
+#         return None
+
+# Snowflake Connection Functions
 def init_snowflake_connection():
     try:
         conn = snowflake.connector.connect(
-            user=st.session_state.snowflake_user,
-            password=st.session_state.snowflake_password,
-            account=st.session_state.snowflake_account,
-            warehouse=st.session_state.snowflake_warehouse,
+            user=st.secrets["snowflake"]["user"],
+            password=st.secrets["snowflake"]["password"],
+            account=st.secrets["snowflake"]["account"],
+            warehouse=st.secrets["snowflake"]["warehouse"],
             database='O3_DEV_DB',
             schema='O3_DEV_RAW_SCH'
         )
@@ -66,6 +83,7 @@ def init_snowflake_connection():
     except Exception as e:
         st.error(f"Error connecting to Snowflake: {e}")
         return None
+
 
 def execute_snowflake_query(query):
     conn = init_snowflake_connection()
@@ -238,7 +256,9 @@ with st.sidebar:
     st.header("Connection Settings")
     
     # Check OpenAI API key
-    api_key = os.environ.get("OPENAI_API_KEY")
+    # api_key = os.environ.get("OPENAI_API_KEY")
+    # api_key = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    api_key = st.secrets.get("OPENAI_API_KEY")
     if api_key:
         st.success("OpenAI API Key is configured")
     else:
@@ -274,28 +294,48 @@ with st.sidebar:
     
     st.header("Snowflake Connection")
     
-    if not st.session_state.initialized:
-        st.session_state.snowflake_user = st.text_input("Snowflake Username")
-        st.session_state.snowflake_password = st.text_input("Snowflake Password", type="password")
-        st.session_state.snowflake_account = st.text_input("Snowflake Account")
-        st.session_state.snowflake_warehouse = st.text_input("Snowflake Warehouse")
+    # if not st.session_state.initialized:
+    #     st.session_state.snowflake_user = st.text_input("Snowflake Username")
+    #     st.session_state.snowflake_password = st.text_input("Snowflake Password", type="password")
+    #     st.session_state.snowflake_account = st.text_input("Snowflake Account")
+    #     st.session_state.snowflake_warehouse = st.text_input("Snowflake Warehouse")
         
-        connect_button = st.button("Connect")
+    #     connect_button = st.button("Connect")
         
-        if connect_button:
-            # Verify API key
-            if not api_key:
-                st.error("Please provide an OpenAI API key before connecting")
-                st.stop()
+    #     if connect_button:
+    #         # Verify API key
+    #         if not api_key:
+    #             st.error("Please provide an OpenAI API key before connecting")
+    #             st.stop()
                 
-            # Now connect to Snowflake
-            conn = init_snowflake_connection()
-            if conn:
-                st.success("Connected to Snowflake!")
+    #         # Now connect to Snowflake
+    #         conn = init_snowflake_connection()
+    #         if conn:
+    #             st.success("Connected to Snowflake!")
+
+    # Check Snowflake credentials
+    snowflake_creds = st.secrets.get("snowflake")
+    if snowflake_creds and all(k in snowflake_creds for k in ["user", "password", "account", "warehouse"]):
+        st.success("Snowflake credentials are configured")
+        
+        # Auto-connect to Snowflake if not initialized
+        if not st.session_state.initialized:
+            # Initialize connection
+            with st.spinner("Connecting to Snowflake..."):
+                # Verify API key
+                if not api_key:
+                    st.error("Please provide an OpenAI API key before connecting")
+                    st.stop()
+                    
+                # Now connect to Snowflake
+                conn = init_snowflake_connection()
+                if conn:
+                    st.success("Connected to Snowflake!")
                 # Get sample data for the model to understand the schema
-                sample_query = f"SELECT * FROM {st.session_state.table_name} LIMIT 1000"
-                df = execute_snowflake_query(sample_query)
-                if df is not None:
+                with st.spinner("Fetching sample data..."):
+                  sample_query = f"SELECT * FROM {st.session_state.table_name} LIMIT 1000"
+                  df = execute_snowflake_query(sample_query)
+                  if df is not None:
                     st.session_state.df = df
                     # Save schema information for checking changes later
                     st.session_state.schema_columns = list(df.columns)  # Store column names
