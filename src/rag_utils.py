@@ -1708,7 +1708,7 @@ def create_document_chunks(df, chunk_size=5):
 def initialize_vector_store(df, table_name=None):
     """Initialize the vector store with embeddings from the dataframe."""
     # Define the file path where embeddings will be stored
-    embeddings_file = "embeddings_store1.pkl"
+    embeddings_file = "embeddings_store.pkl"
     metadata_file = "embeddings_metadata.json"
 
     # Flag to track if we need to regenerate embeddings
@@ -1865,7 +1865,12 @@ def process_query_with_rag(user_query, vector_store, table_name, schema_name, da
     The user's current query is: "{user_query}"
 
     When responding, consider the conversation context and previous questions if they are provided.
-
+    
+    When presenting results (especially tables), always:
+    ✅ Replace technical column names with clean, human-readable labels (e.g., replace 'MAX_PERFORMANCE_RATE' with 'Max Performance Rate')
+    ✅ Use proper casing and spacing to make results understandable to non-technical users
+    ✅ Maintain clear formatting for tables, but ensure column headers are friendly
+    
     If the query is asking for data that can be retrieved with SQL, please:
     1. Write a SQL query to get the requested information from the {table_name} table
     2. Format your SQL code block with ```sql at the beginning and ``` at the end
