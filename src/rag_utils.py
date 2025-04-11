@@ -90,7 +90,7 @@ def create_document_chunks(df, chunk_size=5):
 def initialize_vector_store(df, table_name=None):
     """Initialize the vector store with embeddings from the dataframe."""
     # Define the file path where embeddings will be stored
-    embeddings_file = "embeddings_store.pkl"
+    embeddings_file = "embeddings_store1.pkl"
     metadata_file = "embeddings_metadata.json"
 
     # Flag to track if we need to regenerate embeddings
