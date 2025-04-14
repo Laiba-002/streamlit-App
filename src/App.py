@@ -1038,7 +1038,7 @@ assistant_avatar = (BASE_DIR / "Assistant.png").resolve().as_posix()
 
 # Set page config
 st.set_page_config(
-    page_title="OEE MONITOR",
+    page_title="O3 Agent",
     page_icon="📊",
     layout="wide"
 )
@@ -1316,7 +1316,7 @@ st.markdown("""
     color: rgb(36, 43, 240);
     text-shadow: 2px 2px 4px #7ECF9A;
 '>
-  OEE MONITORING AI AGENT
+  O3 AI AGENT
 </h1>
 """, unsafe_allow_html=True)
 
