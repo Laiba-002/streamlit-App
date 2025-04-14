@@ -1038,7 +1038,7 @@ assistant_avatar = (BASE_DIR / "Assistant.png").resolve().as_posix()
 
 # Set page config
 st.set_page_config(
-    page_title="OEE MONITORING AGENT",
+    page_title="OEE MONITOR",
     page_icon="📊",
     layout="wide"
 )
