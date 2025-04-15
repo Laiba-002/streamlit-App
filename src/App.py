@@ -1029,6 +1029,8 @@ from openai import OpenAI
 import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
+import uuid
+unique_key = f"fig_chart_{uuid.uuid4()}"
 
 # Safe full paths to avatars inside src folder
 BASE_DIR = Path(__file__).parent
@@ -1475,7 +1477,7 @@ if st.session_state.initialized:
 
                 # Display visualization if available
                 if response.get("visualization") is not None:
-                    st.plotly_chart(response["visualization"], use_container_width=True)
+                    st.plotly_chart(response["visualization"], use_container_width=True,key=f"main_fig_chart_{idx}")
                     if response.get("visualization_notes"):
                         st.caption(response["visualization_notes"])
     else:
