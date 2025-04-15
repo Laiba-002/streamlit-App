@@ -1475,7 +1475,7 @@ if st.session_state.initialized:
 
                 # Display visualization if available
                 if response.get("visualization") is not None:
-                    st.plotly_chart(response["visualization"], use_container_width=True,key="response_vis_chart")
+                    st.plotly_chart(response["visualization"], use_container_width=True)
                     if response.get("visualization_notes"):
                         st.caption(response["visualization_notes"])
     else:
