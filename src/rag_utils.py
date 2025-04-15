@@ -10,7 +10,7 @@ from openai import OpenAI
 # Initialize OpenAI client
 # client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-GPT_MODEL = "gpt-3.5 turbo"  # the newest OpenAI model is "gpt-4o mini" which was released May 13, 2024.
+GPT_MODEL = "gpt-3.5-turbo"  # the newest OpenAI model is "gpt-4o mini" which was released May 13, 2024.
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 def get_openai_embedding(text):
