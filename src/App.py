@@ -2954,7 +2954,7 @@ with st.sidebar:
                     st.session_state.embedding_status = "In Progress"
                     st.session_state.vector_store = initialize_vector_store(df)
                     st.session_state.embedding_status = "Completed"
-                    progress_placeholder.success("Embeddings created successfully!")
+                    # progress_placeholder.success("Embeddings created successfully!")
     else:
         # st.success("Connected to Snowflake!")
         st.info(f"Current table: {st.session_state.table_name}")
