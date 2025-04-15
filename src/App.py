@@ -1218,13 +1218,13 @@ def create_visualization(result_df, vis_recommendation):
             if pd.api.types.is_datetime64_any_dtype(result_df[x_col]) or pd.api.types.is_numeric_dtype(result_df[x_col]):
                 result_df = result_df.sort_values(by=x_col)
 
-            fig = px.line(result_df, x=x_col, y=y_col, color=color_col, title=title, markers=True,color_discrete_sequence=custom_palette)
+            fig = px.line(result_df, x=x_col, y=y_col, color=color_col, title=title, markers=True)
 
         elif viz_type == "scatter":
-            fig = px.scatter(result_df, x=x_col, y=y_col, color=color_col, title=title,color_discrete_sequence=custom_palette)
+            fig = px.scatter(result_df, x=x_col, y=y_col, color=color_col, title=title)
 
         elif viz_type == "pie":
-            fig = px.pie(result_df, names=x_col, values=y_col, title=title,color_discrete_sequence=custom_palette)
+            fig = px.pie(result_df, names=x_col, values=y_col, title=title)
 
         elif viz_type == "histogram":
             fig = px.histogram(result_df, x=x_col, title=title,color_discrete_sequence=custom_palette)
