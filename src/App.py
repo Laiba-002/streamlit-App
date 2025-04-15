@@ -2613,10 +2613,6 @@
 
 
 
-
-
-
-
 import streamlit as st
 import snowflake.connector
 import pandas as pd
@@ -2709,9 +2705,7 @@ def execute_snowflake_query(query):
             cursor.close()
             return df
         except Exception as e:
-            # st.error(f"Error executing query: {e}")
-            st.error("Error executing query, please rephrase your question or try again later")
-   
+            st.error(f"Error executing query: {e}")
             return None
     return None
 
@@ -2740,9 +2734,8 @@ def determine_visualization_type(user_query, sql_query, result_df):
             "description": "Brief rationale for why this visualization type is appropriate"
         }}
 
-        Suggest a visualization  for the data and query.
+        Only suggest a visualization if it makes sense for the data and query. If visualization is not appropriate, return "viz_type": "none".
         """
-        # Suggest a visualization if it makes sense for the data and query. If visualization is not appropriate, return "viz_type": "none".
 
         system_prompt = "You are a data visualization expert that chooses appropriate chart types based on query results. Always respond with valid JSON."
 
@@ -2760,8 +2753,7 @@ def determine_visualization_type(user_query, sql_query, result_df):
         return vis_recommendation
 
     except Exception as e:
-        # st.warning(f"Could not determine visualization type: {str(e)}")
-        st.warning("Could not determine visualization type, please rephrase your question")
+        st.warning(f"Could not determine visualization type: {str(e)}")
         return {"viz_type": "none"}
 
 def create_visualization(result_df, vis_recommendation):
@@ -2837,14 +2829,13 @@ def create_visualization(result_df, vis_recommendation):
         return fig
 
     except Exception as e:
-        # st.warning(f"Could not create visualization: {str(e)}")
-        st.warning(f"Could not determine visualization type, please rephrase your query")
+        st.warning(f"Could not create visualization: {str(e)}")
         return None
 
 def generate_nlp_summary(user_query, sql_query, result_df):
     """Generate a natural language summary of SQL query results."""
     try:
-        # with st.spinner("Generating natural language summary..."):
+        with st.spinner("Generating natural language summary..."):
             nlp_summary_prompt = f"""
             I need a natural language summary of the following SQL query results for the question: "{user_query}"
 
@@ -2868,108 +2859,110 @@ def generate_nlp_summary(user_query, sql_query, result_df):
         return "I couldn't generate a natural language summary for these results."
 
 
-# # Sidebar for Snowflake credentials and OpenAI API key
-# with st.sidebar:
-#     st.header("Connection Settings")
-#     api_key = st.secrets.get("OPENAI_API_KEY")
-#     if api_key:
-#         st.success("OpenAI API Key is configured")
-#     else:
-#         st.error("OpenAI API Key is missing")
-#         st.info("Please add your OpenAI API key to use this application")
 
-#     st.header("Chat Settings")
-#     # Toggle for conversation memory
-#     st.session_state.show_history = st.checkbox("Enable conversation memory", value=st.session_state.show_history)
-#     if st.session_state.show_history:
-#         st.success("Conversation memory is enabled")
-#         st.info("The chatbot will remember previous messages for context")
-#     else:
-#         st.info("Conversation memory is disabled")
 
-#     # Developer Mode toggle
-#     if 'debug_mode' not in st.session_state:
-#         st.session_state.debug_mode = False
-#     st.session_state.debug_mode = st.checkbox("Developer Mode", value=st.session_state.debug_mode)
-#     if st.session_state.debug_mode:
-#         st.success("Developer Mode is enabled")
-#         st.info("SQL queries will be shown in responses")
-#     else:
-#         st.info("Developer Mode is disabled")
-#         st.info("SQL queries will be hidden in responses")
+# Sidebar for Snowflake credentials and OpenAI API key
+with st.sidebar:
+    st.header("Connection Settings")
+    api_key = st.secrets.get("OPENAI_API_KEY")
+    if api_key:
+        st.success("OpenAI API Key is configured")
+    else:
+        st.error("OpenAI API Key is missing")
+        st.info("Please add your OpenAI API key to use this application")
 
-#     if st.button("Clear Chat History"):
-#         st.session_state.messages = []
-#         st.session_state.chat_history = []
-#         st.session_state.full_responses = []
-#         st.success("Chat history cleared!")
-#         st.rerun()
+    st.header("Chat Settings")
+    # Toggle for conversation memory
+    st.session_state.show_history = st.checkbox("Enable conversation memory", value=st.session_state.show_history)
+    if st.session_state.show_history:
+        st.success("Conversation memory is enabled")
+        st.info("The chatbot will remember previous messages for context")
+    else:
+        st.info("Conversation memory is disabled")
 
-#     st.header("Snowflake Connection")
+    # Developer Mode toggle
+    if 'debug_mode' not in st.session_state:
+        st.session_state.debug_mode = False
+    st.session_state.debug_mode = st.checkbox("Developer Mode", value=st.session_state.debug_mode)
+    if st.session_state.debug_mode:
+        st.success("Developer Mode is enabled")
+        st.info("SQL queries will be shown in responses")
+    else:
+        st.info("Developer Mode is disabled")
+        st.info("SQL queries will be hidden in responses")
 
-#     # Check Snowflake credentials
-#     snowflake_creds = st.secrets.get("snowflake")
-#     if snowflake_creds and all(k in snowflake_creds for k in ["user", "password", "account", "warehouse"]):
-#         # st.success("Snowflake credentials are configured")
+    if st.button("Clear Chat History"):
+        st.session_state.messages = []
+        st.session_state.chat_history = []
+        st.session_state.full_responses = []
+        st.success("Chat history cleared!")
+        st.rerun()
 
-#         # Auto-connect to Snowflake if not initialized
-#         if not st.session_state.initialized:
-#             # Initialize connection
-#             with st.spinner("Connecting to Snowflake..."):
-#                 # Verify API key
-#                 if not api_key:
-#                     st.error("Please provide an OpenAI API key before connecting")
-#                     st.stop()
+    st.header("Snowflake Connection")
 
-#                 # Now connect to Snowflake
-#                 conn = init_snowflake_connection()
-#                 if conn:
-#                     st.success("Connected to Snowflake!")
-#                 # Get sample data for the model to understand the schema
-#                 with st.spinner("Fetching sample data..."):
-#                   sample_query = f"SELECT * FROM {st.session_state.table_name} LIMIT 1000"
-#                   df = execute_snowflake_query(sample_query)
-#                   if df is not None:
-#                     st.session_state.df = df
-#                     # Save schema information for checking changes later
-#                     st.session_state.schema_columns = list(df.columns)  # Store column names
+    # Check Snowflake credentials
+    snowflake_creds = st.secrets.get("snowflake")
+    if snowflake_creds and all(k in snowflake_creds for k in ["user", "password", "account", "warehouse"]):
+        # st.success("Snowflake credentials are configured")
 
-#                     # Generate introduction about the data
-#                     # schema_info = {col: str(df[col].dtype) for col in df.columns}
-#                     # introduction = generate_introduction(schema_info, table_name=st.session_state.table_name)
-#                     # st.session_state.messages.append({"role": "assistant", "content": introduction})
+        # Auto-connect to Snowflake if not initialized
+        if not st.session_state.initialized:
+            # Initialize connection
+            with st.spinner("Connecting to Snowflake..."):
+                # Verify API key
+                if not api_key:
+                    st.error("Please provide an OpenAI API key before connecting")
+                    st.stop()
 
-#                     # # Add introduction to full_responses
-#                     # st.session_state.full_responses.append({
-#                     #     "user_query": "Hi, can you tell me about the OEE data?",
-#                     #     "text_response": introduction,
-#                     #     "data": None,
-#                     #     "visualization": None,
-#                     #     "visualization_notes": None
-#                     # })
-#                     st.session_state.initialized = True
+                # Now connect to Snowflake
+                conn = init_snowflake_connection()
+                if conn:
+                    st.success("Connected to Snowflake!")
+                # Get sample data for the model to understand the schema
+                with st.spinner("Fetching sample data..."):
+                  sample_query = f"SELECT * FROM {st.session_state.table_name} LIMIT 1000"
+                  df = execute_snowflake_query(sample_query)
+                  if df is not None:
+                    st.session_state.df = df
+                    # Save schema information for checking changes later
+                    st.session_state.schema_columns = list(df.columns)  # Store column names
 
-#                     # Initialize vector store with the data
-#                     progress_placeholder = st.empty()
-#                     progress_placeholder.info("Creating embeddings and initializing vector store...")
-#                     st.session_state.embedding_status = "In Progress"
-#                     st.session_state.vector_store = initialize_vector_store(df)
-#                     st.session_state.embedding_status = "Completed"
-#                     progress_placeholder.success("Embeddings created successfully!")
-#     else:
-#         # st.success("Connected to Snowflake!")
-#         st.info(f"Current table: {st.session_state.table_name}")
-#         st.info(f"Embedding Status: {st.session_state.embedding_status}")
+                    # Generate introduction about the data
+                    # schema_info = {col: str(df[col].dtype) for col in df.columns}
+                    # introduction = generate_introduction(schema_info, table_name=st.session_state.table_name)
+                    # st.session_state.messages.append({"role": "assistant", "content": introduction})
 
-#         if st.button("Disconnect"):
-#             st.session_state.initialized = False
-#             st.session_state.messages = []
-#             st.session_state.chat_history = []  # Clear conversation history as well
-#             st.session_state.full_responses = []  # Clear full responses with tables and visualizations
-#             st.session_state.df = None
-#             st.session_state.vector_store = None
-#             st.session_state.embedding_status = "Not Started"
-#             st.rerun()
+                    # # Add introduction to full_responses
+                    # st.session_state.full_responses.append({
+                    #     "user_query": "Hi, can you tell me about the OEE data?",
+                    #     "text_response": introduction,
+                    #     "data": None,
+                    #     "visualization": None,
+                    #     "visualization_notes": None
+                    # })
+                    st.session_state.initialized = True
+
+                    # Initialize vector store with the data
+                    progress_placeholder = st.empty()
+                    progress_placeholder.info("Creating embeddings and initializing vector store...")
+                    st.session_state.embedding_status = "In Progress"
+                    st.session_state.vector_store = initialize_vector_store(df)
+                    st.session_state.embedding_status = "Completed"
+                    progress_placeholder.success("Embeddings created successfully!")
+    else:
+        # st.success("Connected to Snowflake!")
+        st.info(f"Current table: {st.session_state.table_name}")
+        st.info(f"Embedding Status: {st.session_state.embedding_status}")
+
+        if st.button("Disconnect"):
+            st.session_state.initialized = False
+            st.session_state.messages = []
+            st.session_state.chat_history = []  # Clear conversation history as well
+            st.session_state.full_responses = []  # Clear full responses with tables and visualizations
+            st.session_state.df = None
+            st.session_state.vector_store = None
+            st.session_state.embedding_status = "Not Started"
+            st.rerun()
 
 # Chat interface
 if st.session_state.initialized:
@@ -3015,7 +3008,7 @@ if st.session_state.initialized:
                 st.write(user_query)
 
             # Show spinner while generating response
-            with st.spinner("Please wait a moment! Generating response..."):
+            with st.spinner("Generating response..."):
                 # Get column info for context
                 column_info = {col: str(st.session_state.df[col].dtype) for col in st.session_state.df.columns}
                 conversation_history = st.session_state.chat_history if st.session_state.show_history else None
@@ -3043,7 +3036,7 @@ if st.session_state.initialized:
                             else:
                                 final_response = f"{nlp_summary}\n\nHere are the detailed results:\n"
 
-                            with st.spinner("Almost done... building your chart! "):
+                            with st.spinner("Creating visualization..."):
                                 vis_recommendation = determine_visualization_type(user_query, sql_query, result_df)
                                 log_entry = {
                                     "user_query": user_query,
