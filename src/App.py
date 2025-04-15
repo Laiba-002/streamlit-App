@@ -2705,7 +2705,9 @@ def execute_snowflake_query(query):
             cursor.close()
             return df
         except Exception as e:
-            st.error(f"Error executing query: {e}")
+            # st.error(f"Error executing query: {e}")
+            st.error("There may be some issue with executing query, please rephrase your question or try it later.")
+
             return None
     return None
 
@@ -2734,7 +2736,7 @@ def determine_visualization_type(user_query, sql_query, result_df):
             "description": "Brief rationale for why this visualization type is appropriate"
         }}
 
-        Only suggest a visualization if it makes sense for the data and query. If visualization is not appropriate, return "viz_type": "none".
+        Suggest a visualization  for the data and query.
         """
 
         system_prompt = "You are a data visualization expert that chooses appropriate chart types based on query results. Always respond with valid JSON."
@@ -2753,7 +2755,9 @@ def determine_visualization_type(user_query, sql_query, result_df):
         return vis_recommendation
 
     except Exception as e:
-        st.warning(f"Could not determine visualization type: {str(e)}")
+        # st.warning(f"Could not determine visualization type: {str(e)}")
+        st.warning("Could not determine visualization type, please rephrase your question or try again it later.")
+
         return {"viz_type": "none"}
 
 def create_visualization(result_df, vis_recommendation):
@@ -2829,13 +2833,15 @@ def create_visualization(result_df, vis_recommendation):
         return fig
 
     except Exception as e:
-        st.warning(f"Could not create visualization: {str(e)}")
+        # st.warning(f"Could not create visualization: {str(e)}")
+        st.warning("Could not create visualization, try rephrasing your question or try again.")
+
         return None
 
 def generate_nlp_summary(user_query, sql_query, result_df):
     """Generate a natural language summary of SQL query results."""
     try:
-        with st.spinner("Generating natural language summary..."):
+        # with st.spinner("Generating natural language summary..."):
             nlp_summary_prompt = f"""
             I need a natural language summary of the following SQL query results for the question: "{user_query}"
 
@@ -2863,40 +2869,40 @@ def generate_nlp_summary(user_query, sql_query, result_df):
 
 # Sidebar for Snowflake credentials and OpenAI API key
 with st.sidebar:
-    st.header("Connection Settings")
+    # st.header("Connection Settings")
     api_key = st.secrets.get("OPENAI_API_KEY")
-    if api_key:
-        st.success("OpenAI API Key is configured")
-    else:
-        st.error("OpenAI API Key is missing")
-        st.info("Please add your OpenAI API key to use this application")
+    # if api_key:
+    #     st.success("OpenAI API Key is configured")
+    # else:
+    #     st.error("OpenAI API Key is missing")
+    #     st.info("Please add your OpenAI API key to use this application")
 
-    st.header("Chat Settings")
-    # Toggle for conversation memory
-    st.session_state.show_history = st.checkbox("Enable conversation memory", value=st.session_state.show_history)
-    if st.session_state.show_history:
-        st.success("Conversation memory is enabled")
-        st.info("The chatbot will remember previous messages for context")
-    else:
-        st.info("Conversation memory is disabled")
+    # st.header("Chat Settings")
+    # # Toggle for conversation memory
+    # st.session_state.show_history = st.checkbox("Enable conversation memory", value=st.session_state.show_history)
+    # if st.session_state.show_history:
+    #     st.success("Conversation memory is enabled")
+    #     st.info("The chatbot will remember previous messages for context")
+    # else:
+    #     st.info("Conversation memory is disabled")
 
-    # Developer Mode toggle
-    if 'debug_mode' not in st.session_state:
-        st.session_state.debug_mode = False
-    st.session_state.debug_mode = st.checkbox("Developer Mode", value=st.session_state.debug_mode)
-    if st.session_state.debug_mode:
-        st.success("Developer Mode is enabled")
-        st.info("SQL queries will be shown in responses")
-    else:
-        st.info("Developer Mode is disabled")
-        st.info("SQL queries will be hidden in responses")
+    # # Developer Mode toggle
+    # if 'debug_mode' not in st.session_state:
+    #     st.session_state.debug_mode = False
+    # st.session_state.debug_mode = st.checkbox("Developer Mode", value=st.session_state.debug_mode)
+    # if st.session_state.debug_mode:
+    #     st.success("Developer Mode is enabled")
+    #     st.info("SQL queries will be shown in responses")
+    # else:
+    #     st.info("Developer Mode is disabled")
+    #     st.info("SQL queries will be hidden in responses")
 
-    if st.button("Clear Chat History"):
-        st.session_state.messages = []
-        st.session_state.chat_history = []
-        st.session_state.full_responses = []
-        st.success("Chat history cleared!")
-        st.rerun()
+    # if st.button("Clear Chat History"):
+    #     st.session_state.messages = []
+    #     st.session_state.chat_history = []
+    #     st.session_state.full_responses = []
+    #     st.success("Chat history cleared!")
+    #     st.rerun()
 
     st.header("Snowflake Connection")
 
@@ -3036,7 +3042,7 @@ if st.session_state.initialized:
                             else:
                                 final_response = f"{nlp_summary}\n\nHere are the detailed results:\n"
 
-                            with st.spinner("Creating visualization..."):
+                            with st.spinner("Almost done... building your chart!"):
                                 vis_recommendation = determine_visualization_type(user_query, sql_query, result_df)
                                 log_entry = {
                                     "user_query": user_query,
