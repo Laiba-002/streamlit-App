@@ -1012,721 +1012,6 @@
 
 
 
-# import streamlit as st
-# import snowflake.connector
-# import pandas as pd
-# import numpy as np
-# import os
-# import re
-# import json
-# from prompts import generate_introduction, get_llm_response, call_openai
-# from rag_utils import (
-#     initialize_vector_store,
-#     process_query_with_rag,
-#     get_openai_embedding
-# )
-# from openai import OpenAI
-# import plotly.express as px
-# import plotly.graph_objects as go
-# from pathlib import Path
-# import uuid
-# unique_key = f"fig_chart_{uuid.uuid4()}"
-
-# # Safe full paths to avatars inside src folder
-# BASE_DIR = Path(__file__).parent
-# user_avatar = (BASE_DIR / "user.png").resolve().as_posix()
-# assistant_avatar = (BASE_DIR / "Assistant.png").resolve().as_posix()
-
-
-# # Set page config
-# st.set_page_config(
-#     page_title="O3 Agent",
-#     page_icon="📊",
-#     layout="wide"
-# )
-
-# # OpenAI client
-# # client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-# client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-# GPT_MODEL = "gpt-3.5-turbo"  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-
-# # Initialize session state variables
-# if 'initialized' not in st.session_state:
-#     st.session_state.initialized = False
-# if 'messages' not in st.session_state:
-#     st.session_state.messages = []
-# if 'full_responses' not in st.session_state:
-#     st.session_state.full_responses = []  # For storing full responses with dataframes and visualizations
-# if 'chat_history' not in st.session_state:
-#     st.session_state.chat_history = []  # For the OpenAI conversation history
-# if 'df' not in st.session_state:
-#     st.session_state.df = None
-# if 'vector_store' not in st.session_state:
-#     st.session_state.vector_store = None
-# if 'embedding_status' not in st.session_state:
-#     st.session_state.embedding_status = "Not Started"
-# if 'show_history' not in st.session_state:
-#     st.session_state.show_history = True  # Toggle for conversation memory
-# if 'debug_mode' not in st.session_state:
-#     st.session_state.debug_mode = False  # Toggle for developer mode
-# if 'table_name' not in st.session_state:
-#     st.session_state.table_name = "OEESHIFTWISE_AI"  # Default table name
-# if 'schema_columns' not in st.session_state:
-#     st.session_state.schema_columns = []  # To track schema changes
-
-# # Snowflake Connection Functions
-# # def init_snowflake_connection():
-# #     try:
-# #         conn = snowflake.connector.connect(
-# #             user=st.session_state.snowflake_user,
-# #             password=st.session_state.snowflake_password,
-# #             account=st.session_state.snowflake_account,
-# #             warehouse=st.session_state.snowflake_warehouse,
-# #             database='O3_AI_DB',
-# #             schema='O3_AI_DB_SCHEMA'
-# #         )
-# #         return conn
-# #     except Exception as e:
-# #         st.error(f"Error connecting to Snowflake: {e}")
-# #         return None
-
-# # Snowflake Connection Functions
-# def init_snowflake_connection():
-#     try:
-#         conn = snowflake.connector.connect(
-#             user=st.secrets["snowflake"]["user"],
-#             password=st.secrets["snowflake"]["password"],
-#             account=st.secrets["snowflake"]["account"],
-#             warehouse=st.secrets["snowflake"]["warehouse"],
-#             # database='O3_AI_DB',
-#             # schema='O3_AI_DB_SCHEMA'
-#             database="O3_AI_DB",
-#             schema="O3_AI_DB_SCHEMA"
-           
-#         )
-#         return conn
-#     except Exception as e:
-#         st.error(f"Error connecting to Snowflake: {e}")
-#         return None
-
-
-# def execute_snowflake_query(query):
-#     conn = init_snowflake_connection()
-#     if conn:
-#         try:
-#             cursor = conn.cursor()
-#             cursor.execute(query)
-#             result = cursor.fetchall()
-#             columns = [desc[0] for desc in cursor.description]
-#             df = pd.DataFrame(result, columns=columns)
-#             cursor.close()
-#             return df
-#         except Exception as e:
-#             st.error(f"Error executing query: {e}")
-#             return None
-#     return None
-
-# def determine_visualization_type(user_query, sql_query, result_df):
-#     """Determine the appropriate visualization type based on the query and results."""
-#     try:
-#         vis_prompt = f"""
-#         I need to visualize the following SQL query results for the question: "{user_query}"
-
-#         The SQL query was:
-#         ```sql
-#         {sql_query}
-#         ```
-
-#         The query returned {len(result_df)} rows with the following column names and data types:
-#         {[(col, str(result_df[col].dtype)) for col in result_df.columns]}
-
-#         Based on the user's question and the data returned, determine the most appropriate visualization type.
-#         Respond with a JSON object with the following structure:
-#         {{
-#             "viz_type": "line|bar|scatter|pie|histogram|heatmap|none",
-#             "x_column": "name of column to use for x-axis or categories",
-#             "y_column": "name of column to use for y-axis or values",
-#             "color_column": "name of column to use for color differentiation (optional, can be null)",
-#             "title": "Suggested title for the visualization",
-#             "description": "Brief rationale for why this visualization type is appropriate"
-#         }}
-
-#         Only suggest a visualization if it makes sense for the data and query. If visualization is not appropriate, return "viz_type": "none".
-#         """
-
-#         system_prompt = "You are a data visualization expert that chooses appropriate chart types based on query results. Always respond with valid JSON."
-
-#         # Set response format to JSON for structured response
-#         vis_response = client.chat.completions.create(
-#             model=GPT_MODEL,
-#             messages=[
-#                 {"role": "system", "content": system_prompt},
-#                 {"role": "user", "content": vis_prompt}
-#             ],
-#             response_format={"type": "json_object"}
-#         )
-
-#         # Parse the JSON response
-#         # print(vis_response['usage'])
-#         # st.write(vis_response['usage'])
-#         vis_recommendation = json.loads(vis_response.choices[0].message.content)
-#         return vis_recommendation
-
-#     except Exception as e:
-#         st.warning(f"Could not determine visualization type: {str(e)}")
-#         return {"viz_type": "none"}
-
-# def create_visualization(result_df, vis_recommendation):
-#     """Create an appropriate visualization based on the recommendation."""
-#     try:
-#         viz_type = vis_recommendation.get("viz_type", "none")
-#         if viz_type == "none" or len(result_df) == 0:
-#             return None
-        
-#         # 🌈 Custom color palette
-#         custom_palette = ["#242bf0", "#7ECF9A"]
-
-
-#         x_col = vis_recommendation.get("x_column")
-#         y_col = vis_recommendation.get("y_column")
-#         color_col = vis_recommendation.get("color_column")
-#         title = vis_recommendation.get("title", "Data Visualization")
-
-#         # Check if the recommended columns exist in the dataframe
-#         available_cols = result_df.columns.tolist()
-#         if x_col and x_col not in available_cols:
-#             x_col = available_cols[0] if available_cols else None
-#         if y_col and y_col not in available_cols:
-#             y_col = available_cols[1] if len(available_cols) > 1 else available_cols[0] if available_cols else None
-#         if color_col and color_col not in available_cols:
-#             color_col = None
-
-#         if not x_col or not y_col:
-#             return None
-
-#         # Create the appropriate plot based on visualization type
-#         if viz_type == "bar":
-#             # Handle aggregation if needed
-#             if len(result_df) > 25:  # Too many bars becomes unreadable
-#                 # Try to aggregate data if it makes sense
-#                 result_df = result_df.groupby(x_col, as_index=False)[y_col].agg('sum')
-
-#             fig = px.bar(result_df, x=x_col, y=y_col, color=color_col, title=title,color_discrete_sequence=custom_palette)
-
-#         elif viz_type == "line":
-#             # Sort by x if it's a datetime or numeric column
-#             if pd.api.types.is_datetime64_any_dtype(result_df[x_col]) or pd.api.types.is_numeric_dtype(result_df[x_col]):
-#                 result_df = result_df.sort_values(by=x_col)
-
-#             fig = px.line(result_df, x=x_col, y=y_col, color=color_col, title=title, markers=True)
-
-#         elif viz_type == "scatter":
-#             fig = px.scatter(result_df, x=x_col, y=y_col, color=color_col, title=title)
-
-#         elif viz_type == "pie":
-#             fig = px.pie(result_df, names=x_col, values=y_col, title=title)
-
-#         elif viz_type == "histogram":
-#             fig = px.histogram(result_df, x=x_col, title=title,color_discrete_sequence=custom_palette)
-
-#         elif viz_type == "heatmap":
-#             # Create a pivot table for heatmap
-#             if color_col:
-#                 pivot_df = result_df.pivot_table(values=color_col, index=y_col, columns=x_col, aggfunc='mean')
-#                 fig = px.imshow(pivot_df, title=title)
-#             else:
-#                 return None
-#         else:
-#             return None
-
-#         # Style the figure for better appearance
-#         fig.update_layout(
-#             template="plotly_dark",
-#             height=500,
-#             margin=dict(l=50, r=50, t=80, b=50)
-#         )
-
-#         return fig
-
-#     except Exception as e:
-#         st.warning(f"Could not create visualization: {str(e)}")
-#         return None
-
-# def generate_nlp_summary(user_query, sql_query, result_df):
-#     """Generate a natural language summary of SQL query results."""
-#     try:
-#         with st.spinner("Generating natural language summary..."):
-#             nlp_summary_prompt = f"""
-#             I need a natural language summary of the following SQL query results for the question: "{user_query}"
-
-#             The SQL query was:
-#             ```sql
-#             {sql_query}
-#             ```
-
-#             The query returned {len(result_df)} rows with the following data:
-#             {result_df.to_string(index=False, max_rows=10)}
-
-#             Please provide a 1-2 sentence natural language summary of these results that directly answers the user's question.
-#             Focus on the key metrics, highest/lowest values, or trends as appropriate.
-#             Be specific and include the actual values from the data.
-#             """
-
-#             nlp_summary = call_openai(nlp_summary_prompt, "You are a data analyst summarizing SQL query results in plain language.")
-#             return nlp_summary
-#     except Exception as e:
-#         st.warning(f"Could not generate natural language summary: {str(e)}")
-#         return "I couldn't generate a natural language summary for these results."
-
-# # UI Components
-# # Title and sidebar
-# # st.title("OEE MONITORING AI AGENT")
-# # st.markdown("""
-# # <h1 style='
-# #     text-align: center;
-# #     font-size: 50px;
-# #     font-weight: 900;
-# #     letter-spacing: 2px;
-# #     color: #1f3b73;
-# #     text-shadow: 2px 2px 4px #7ECF9A;
-# # '>
-# #   OEE MONITORING AI AGENT
-# # </h1>
-# # """, unsafe_allow_html=True)
-
-# # st.markdown("""
-# # <h1 style='
-# #     text-align: center;
-# #     font-size: 50px;
-# #     font-weight: 900;
-# #     letter-spacing: 2px;
-
-# #     color: rgb(81,103,246);
-# #     text-shadow: 2px 2px 4px #7ECF9A;'
-# #   OEE MONITORING AI AGENT
-# # </h1>
-# # """, unsafe_allow_html=True)
-
-
-
-# st.markdown("""
-# <h1 style='
-#     text-align: center;
-#     font-size: 50px;
-#     font-weight: 900;
-#     letter-spacing: 2px;
-#     color: rgb(36, 43, 240);
-#     text-shadow: 2px 2px 4px #7ECF9A;
-# '>
-#   O3 AI AGENT
-# </h1>
-# """, unsafe_allow_html=True)
-
-# # st.markdown("""
-# # <h1 style='text-align: center; font-size: 50px;'>
-# #   <span style='color:#1f3b73;'>OEE MONITORING</span>
-# #   <span style='color:#7ECF9A;'>AI AGENT</span>
-# # </h1>
-# # """, unsafe_allow_html=True)
-
-
-
-# # Sidebar for Snowflake credentials and OpenAI API key
-# with st.sidebar:
-#     st.header("Connection Settings")
-
-#     # Check OpenAI API key
-#     # api_key = os.environ.get("OPENAI_API_KEY")
-#     # api_key = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-#     api_key = st.secrets.get("OPENAI_API_KEY")
-#     if api_key:
-#         st.success("OpenAI API Key is configured")
-#     else:
-#         st.error("OpenAI API Key is missing")
-#         st.info("Please add your OpenAI API key to use this application")
-
-#     st.header("Chat Settings")
-#     # Toggle for conversation memory
-#     st.session_state.show_history = st.checkbox("Enable conversation memory", value=st.session_state.show_history)
-#     if st.session_state.show_history:
-#         st.success("Conversation memory is enabled")
-#         st.info("The chatbot will remember previous messages for context")
-#     else:
-#         st.info("Conversation memory is disabled")
-
-#     # Developer Mode toggle
-#     if 'debug_mode' not in st.session_state:
-#         st.session_state.debug_mode = False
-#     st.session_state.debug_mode = st.checkbox("Developer Mode", value=st.session_state.debug_mode)
-#     if st.session_state.debug_mode:
-#         st.success("Developer Mode is enabled")
-#         st.info("SQL queries will be shown in responses")
-#     else:
-#         st.info("Developer Mode is disabled")
-#         st.info("SQL queries will be hidden in responses")
-
-#     if st.button("Clear Chat History"):
-#         st.session_state.messages = []
-#         st.session_state.chat_history = []
-#         st.session_state.full_responses = []
-#         st.success("Chat history cleared!")
-#         st.rerun()
-
-#     st.header("Snowflake Connection")
-
-#     # if not st.session_state.initialized:
-#     #     st.session_state.snowflake_user = st.text_input("Snowflake Username")
-#     #     st.session_state.snowflake_password = st.text_input("Snowflake Password", type="password")
-#     #     st.session_state.snowflake_account = st.text_input("Snowflake Account")
-#     #     st.session_state.snowflake_warehouse = st.text_input("Snowflake Warehouse")
-
-#     #     connect_button = st.button("Connect")
-
-#     #     if connect_button:
-#     #         # Verify API key
-#     #         if not api_key:
-#     #             st.error("Please provide an OpenAI API key before connecting")
-#     #             st.stop()
-
-#     #         # Now connect to Snowflake
-#     #         conn = init_snowflake_connection()
-#     #         if conn:
-#     #             st.success("Connected to Snowflake!")
-
-#     # Check Snowflake credentials
-#     snowflake_creds = st.secrets.get("snowflake")
-#     if snowflake_creds and all(k in snowflake_creds for k in ["user", "password", "account", "warehouse"]):
-#         # st.success("Snowflake credentials are configured")
-
-#         # Auto-connect to Snowflake if not initialized
-#         if not st.session_state.initialized:
-#             # Initialize connection
-#             with st.spinner("Connecting to Snowflake..."):
-#                 # Verify API key
-#                 if not api_key:
-#                     st.error("Please provide an OpenAI API key before connecting")
-#                     st.stop()
-
-#                 # Now connect to Snowflake
-#                 conn = init_snowflake_connection()
-#                 if conn:
-#                     st.success("Connected to Snowflake!")
-#                 # Get sample data for the model to understand the schema
-#                 with st.spinner("Fetching sample data..."):
-#                   sample_query = f"SELECT * FROM {st.session_state.table_name} LIMIT 1000"
-#                   df = execute_snowflake_query(sample_query)
-#                   if df is not None:
-#                     st.session_state.df = df
-#                     # Save schema information for checking changes later
-#                     st.session_state.schema_columns = list(df.columns)  # Store column names
-
-#                     # Generate introduction about the data
-#                     schema_info = {col: str(df[col].dtype) for col in df.columns}
-#                     introduction = generate_introduction(schema_info, table_name=st.session_state.table_name)
-#                     st.session_state.messages.append({"role": "assistant", "content": introduction})
-
-#                     # Add introduction to full_responses
-#                     st.session_state.full_responses.append({
-#                         "user_query": "Hi, can you tell me about the OEE data?",
-#                         "text_response": introduction,
-#                         "data": None,
-#                         "visualization": None,
-#                         "visualization_notes": None
-#                     })
-#                     st.session_state.initialized = True
-
-#                     # Initialize vector store with the data
-#                     progress_placeholder = st.empty()
-#                     progress_placeholder.info("Creating embeddings and initializing vector store...")
-#                     st.session_state.embedding_status = "In Progress"
-#                     st.session_state.vector_store = initialize_vector_store(df)
-#                     st.session_state.embedding_status = "Completed"
-#                     progress_placeholder.success("Embeddings created successfully!")
-#     else:
-#         # st.success("Connected to Snowflake!")
-#         st.info(f"Current table: {st.session_state.table_name}")
-#         st.info(f"Embedding Status: {st.session_state.embedding_status}")
-
-#         if st.button("Disconnect"):
-#             st.session_state.initialized = False
-#             st.session_state.messages = []
-#             st.session_state.chat_history = []  # Clear conversation history as well
-#             st.session_state.full_responses = []  # Clear full responses with tables and visualizations
-#             st.session_state.df = None
-#             st.session_state.vector_store = None
-#             st.session_state.embedding_status = "Not Started"
-#             st.rerun()
-
-# # Chat interface
-# if st.session_state.initialized:
-#     # Display chat messages and full responses (with tables and visualizations)
-#     if len(st.session_state.full_responses) > 0:
-#         # Display messages with full content (tables and visualizations)
-#         for idx, response in enumerate(st.session_state.full_responses):
-#             # Display user message
-#             with st.chat_message("user",avatar=user_avatar):
-#                 st.write(response.get("user_query", ""))
-
-#             # Display assistant response with tables and visualizations
-#             with st.chat_message("assistant",avatar=assistant_avatar):
-#                 st.write(response.get("text_response", ""))
-
-#                 # Display data table if available
-#                 if response.get("data") is not None:
-#                     st.dataframe(response["data"])
-
-#                 # Display visualization if available
-#                 if response.get("visualization") is not None:
-#                     st.plotly_chart(response["visualization"], use_container_width=True,key=f"main_fig_chart_{idx}")
-#                     if response.get("visualization_notes"):
-#                         st.caption(response["visualization_notes"])
-#     else:
-#         # Fall back to just displaying text messages if no full responses exist yet
-#         for message in st.session_state.messages:
-#             with st.chat_message(message["role"]):
-#                 st.write(message["content"])
-
-#     # User input
-#     user_query = st.chat_input("What would you like to know about the OEE data?")
-#     if user_query:
-#         # Add to display messages
-#         st.session_state.messages.append({"role": "user", "content": user_query})
-#         # Add to chat history for OpenAI (only if history is enabled)
-#         if st.session_state.show_history:
-#             st.session_state.chat_history.append({"role": "user", "content": user_query})
-
-#         with st.chat_message("user",avatar=user_avatar):
-#             st.write(user_query)
-
-#         with st.spinner("Generating response..."):
-#             # Get column info for context
-#             column_info = {col: str(st.session_state.df[col].dtype) for col in st.session_state.df.columns}
-
-#             # Prepare conversation history if enabled
-#             conversation_history = st.session_state.chat_history if st.session_state.show_history else None
-
-#             # Process query with RAG
-#             if st.session_state.vector_store and st.session_state.embedding_status == "Completed":
-#                 rag_response = process_query_with_rag(
-#                     user_query=user_query,
-#                     vector_store=st.session_state.vector_store,
-#                     table_name=st.session_state.table_name,
-#                     # schema_name="O3_AI_DB_SCHEMA",
-#                     # database_name="O3_AI_DB",
-#                     schema_name="O3_AI_DB_SCHEMA",
-#                     database_name="O3_AI_DB",
-#                     column_info=column_info,
-#                     conversation_history=conversation_history
-#                 )
-
-#                 # Extract SQL query from response if available
-#                 if "```sql" in rag_response:
-#                     sql_query = rag_response.split("```sql")[1].split("```")[0].strip()
-
-#                     # Execute SQL query
-#                     result_df = execute_snowflake_query(sql_query)
-
-#                     # Format final response
-#                     if result_df is not None and not result_df.empty:
-#                         # Generate natural language summary
-#                         nlp_summary = generate_nlp_summary(user_query, sql_query, result_df)
-
-#                         # Format response based on debug mode
-#                         if st.session_state.debug_mode:
-#                             # Show SQL in debug mode
-#                             final_response = f"Based on your question, I generated this SQL query:\n```sql\n{sql_query}\n```\n\n"
-#                             # Add the natural language summary
-#                             final_response += f"{nlp_summary}\n\n"
-#                             # Add the result
-#                             final_response += "Here are the detailed results:\n"
-#                         else:
-#                             # Hide SQL in regular mode - just show the summary
-#                             final_response = f"{nlp_summary}\n\n"
-#                             # Add the result
-#                             final_response += "Here are the detailed results:\n"
-
-#                         # Determine appropriate visualization
-#                         with st.spinner("Creating visualization..."):
-#                             vis_recommendation = determine_visualization_type(user_query, sql_query, result_df)
-#                             # 🔍 Debug: show what the LLM recommended
-#                             from datetime import datetime  # 💡 put this at the top of your file if not already
-
-#                             # 📦 Build log entry
-#                             log_entry = {
-#                               "user_query": user_query,
-#                               "sql_query": sql_query,
-#                               "vis_recommendation": vis_recommendation
-# }
-
-#                             # 🕒 Add timestamp to log
-#                             log_entry["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-#                             # 📝 Save it to a file called vis_logs.txt
-#                             with open("vis_logs.txt", "a", encoding="utf-8") as log_file:
-#                                 log_file.write(json.dumps(log_entry, indent=2))
-#                                 log_file.write("\n\n" + "="*80 + "\n\n")
-
-
-#                             fig = create_visualization(result_df, vis_recommendation)
-
-#                         with st.chat_message("assistant",avatar=assistant_avatar):
-#                             st.write(final_response)
-
-#                             # Display the data table
-#                             st.dataframe(result_df)
-
-#                             # Display visualization if available
-#                             if fig:
-#                                 st.plotly_chart(fig, use_container_width=True,key="main_fig_chart")
-#                                 description = vis_recommendation.get("description", "")
-#                                 if description:
-#                                     st.caption(f"Visualization notes: {description}")
-
-#                         # Save message without the dataframe (for OpenAI history)
-#                         response_content = final_response + "[Results shown in table format and visualization]"
-#                         st.session_state.messages.append({
-#                             "role": "assistant", 
-#                             "content": response_content
-#                         })
-
-#                         # Store full response with dataframe and visualization for display
-#                         visualization_notes = ""
-#                         if fig and vis_recommendation.get("description"):
-#                             visualization_notes = f"Visualization notes: {vis_recommendation.get('description')}"
-
-#                         st.session_state.full_responses.append({
-#                             "user_query": user_query,
-#                             "text_response": final_response,
-#                             "data": result_df,
-#                             "visualization": fig,
-#                             "visualization_notes": visualization_notes,
-#                             "sql_query": sql_query if st.session_state.debug_mode else None
-#                         })
-
-#                         # Add to chat history for OpenAI (only if history is enabled)
-#                         if st.session_state.show_history:
-#                             st.session_state.chat_history.append({
-#                                 "role": "assistant", 
-#                                 "content": response_content
-#                             })
-
-#                     elif result_df is not None and result_df.empty:
-#                         no_data_msg='I apologize,no results found regarding your query.'
-#                         with st.chat_message("assistant",avatar=assistant_avatar):
-#                             st.warning(no_data_msg)  
-#                         st.session_state.messages.append({"role":"assistant","content":no_data_msg})
-#                         st.session_state.full_responses.append({
-#                             "user_query":user_query,
-#                             "text_response":no_data_msg,
-#                             "data": None,
-#                             "visualization_notes": None,
-#                             "sql_query": sql_query if st.session_state.debug_mode else None
-#                         }) 
-#                         if st.session_state.show_history:
-#                             st.session_state.chat_history.append({"role":"assistant","content": no_data_msg})         
-#                     else:
-#                         # Format error response based on debug mode
-#                         if st.session_state.debug_mode:
-#                             final_response = f"I generated this SQL query, but there was an error executing it:\n```sql\n{sql_query}\n```"
-#                         else:
-#                             final_response = f"I couldn't retrieve the data you asked for. There might be an issue with the query or connection."
-
-#                         with st.chat_message("assistant",avatar=assistant_avatar):
-#                             st.write(final_response)
-#                         st.session_state.messages.append({"role": "assistant", "content": final_response})
-
-#                         # Store error in full_responses for consistent display
-#                         st.session_state.full_responses.append({
-#                             "user_query": user_query,
-#                             "text_response": final_response,
-#                             "data": None,
-#                             "visualization": None,
-#                             "visualization_notes": None,
-#                             "sql_query": sql_query if st.session_state.debug_mode else None
-#                         })
-
-#                         # Add to chat history for OpenAI (only if history is enabled)
-#                         if st.session_state.show_history:
-#                             st.session_state.chat_history.append({"role": "assistant", "content": final_response})
-#                 else:
-#                     # If no SQL was generated
-#                     with st.chat_message("assistant",avatar=assistant_avatar):
-#                         st.write(rag_response)
-#                     st.session_state.messages.append({"role": "assistant", "content": rag_response})
-
-#                     # Store in full_responses for consistent display
-#                     st.session_state.full_responses.append({
-#                         "user_query": user_query,
-#                         "text_response": rag_response,
-#                         "data": None,
-#                         "visualization": None,
-#                         "visualization_notes": None
-#                     })
-
-#                     # Add to chat history for OpenAI (only if history is enabled)
-#                     if st.session_state.show_history:
-#                         st.session_state.chat_history.append({"role": "assistant", "content": rag_response})
-#             else:
-#                 # Fallback to regular LLM response if vector store not ready
-#                 llm_response = get_llm_response(
-#                     user_query=user_query,
-#                     table_name=st.session_state.table_name,
-#                     schema_name="O3_AI_DB",
-#                     database_name="O3_AI_DB_SCHEMA",
-#                     column_info=column_info,
-#                     conversation_history=conversation_history
-#                 )
-#                 with st.chat_message("assistant",avatar=assistant_avatar):
-#                     st.write(llm_response)
-#                 st.session_state.messages.append({"role": "assistant", "content": llm_response})
-
-#                 # Store in full_responses for consistent display
-#                 st.session_state.full_responses.append({
-#                     "user_query": user_query,
-#                     "text_response": llm_response,
-#                     "data": None,
-#                     "visualization": None,
-#                     "visualization_notes": None
-#                 })
-
-#                 # Add to chat history for OpenAI (only if history is enabled)
-#                 if st.session_state.show_history:
-#                     st.session_state.chat_history.append({"role": "assistant", "content": llm_response})
-# else:
-#     st.info("Please connect to Snowflake to use the chatbot.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import streamlit as st
 import snowflake.connector
 import pandas as pd
@@ -1734,8 +1019,6 @@ import numpy as np
 import os
 import re
 import json
-from datetime import datetime
-
 from prompts import generate_introduction, get_llm_response, call_openai
 from rag_utils import (
     initialize_vector_store,
@@ -1757,7 +1040,7 @@ assistant_avatar = (BASE_DIR / "Assistant.png").resolve().as_posix()
 
 # Set page config
 st.set_page_config(
-    page_title="OEE MONITORING AGENT",
+    page_title="O3 Agent",
     page_icon="📊",
     layout="wide"
 )
@@ -1765,14 +1048,11 @@ st.set_page_config(
 # OpenAI client
 # client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-GPT_MODEL = "gpt-4o"  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
+GPT_MODEL = "gpt-3.5-turbo"  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 
 # Initialize session state variables
 if 'initialized' not in st.session_state:
     st.session_state.initialized = False
-# if 'show_welcome_message' not in st.session_state:
-#     st.session_state.show_welcome_message = True
-
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'full_responses' not in st.session_state:
@@ -1866,13 +1146,12 @@ def determine_visualization_type(user_query, sql_query, result_df):
             "viz_type": "line|bar|scatter|pie|histogram|heatmap|none",
             "x_column": "name of column to use for x-axis or categories",
             "y_column": "name of column to use for y-axis or values",
-           "color_column": "name of column to use for color differentiation (optional, can be null)",
-
+            "color_column": "name of column to use for color differentiation (optional, can be null)",
             "title": "Suggested title for the visualization",
             "description": "Brief rationale for why this visualization type is appropriate"
         }}
 
-        Only suggest a visualization if it makes sense for the data and query.
+        Only suggest a visualization if it makes sense for the data and query. If visualization is not appropriate, return "viz_type": "none".
         """
 
         system_prompt = "You are a data visualization expert that chooses appropriate chart types based on query results. Always respond with valid JSON."
@@ -1933,7 +1212,6 @@ def create_visualization(result_df, vis_recommendation):
                 result_df = result_df.groupby(x_col, as_index=False)[y_col].agg('sum')
 
             fig = px.bar(result_df, x=x_col, y=y_col, color=color_col, title=title,color_discrete_sequence=custom_palette)
-            # fig = px.bar(result_df, x=x_col, y=y_col, title=title,color_discrete_sequence=custom_palette)
 
         elif viz_type == "line":
             # Sort by x if it's a datetime or numeric column
@@ -1941,14 +1219,12 @@ def create_visualization(result_df, vis_recommendation):
                 result_df = result_df.sort_values(by=x_col)
 
             fig = px.line(result_df, x=x_col, y=y_col, color=color_col, title=title, markers=True)
-            # fig = px.line(result_df, x=x_col, y=y_col, title=title, markers=True,color_discrete_sequence=custom_palette)
 
         elif viz_type == "scatter":
             fig = px.scatter(result_df, x=x_col, y=y_col, color=color_col, title=title)
-            # fig = px.scatter(result_df, x=x_col, y=y_col, title=title,color_discrete_sequence=custom_palette)
 
         elif viz_type == "pie":
-            fig = px.pie(result_df, names=x_col, values=y_col, title=title,color_discrete_sequence=custom_palette)
+            fig = px.pie(result_df, names=x_col, values=y_col, title=title)
 
         elif viz_type == "histogram":
             fig = px.histogram(result_df, x=x_col, title=title,color_discrete_sequence=custom_palette)
@@ -2033,18 +1309,18 @@ def generate_nlp_summary(user_query, sql_query, result_df):
 
 
 
-# st.markdown("""
-# <h1 style='
-#     text-align: center;
-#     font-size: 50px;
-#     font-weight: 900;
-#     letter-spacing: 2px;
-#     color: rgb(36, 43, 240);
-#     text-shadow: 2px 2px 4px #7ECF9A;
-# '>
-#   OEE MONITORING AI AGENT
-# </h1>
-# """, unsafe_allow_html=True)
+st.markdown("""
+<h1 style='
+    text-align: center;
+    font-size: 50px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: rgb(36, 43, 240);
+    text-shadow: 2px 2px 4px #7ECF9A;
+'>
+  O3 AI AGENT
+</h1>
+""", unsafe_allow_html=True)
 
 # st.markdown("""
 # <h1 style='text-align: center; font-size: 50px;'>
@@ -2147,15 +1423,15 @@ with st.sidebar:
                     # Generate introduction about the data
                     schema_info = {col: str(df[col].dtype) for col in df.columns}
                     introduction = generate_introduction(schema_info, table_name=st.session_state.table_name)
-                    # st.session_state.messages.append({"role": "assistant", "content": introduction})
+                    st.session_state.messages.append({"role": "assistant", "content": introduction})
 
                     # Add introduction to full_responses
                     st.session_state.full_responses.append({
-                        "user_query": "Hi, how can I help you?",
-                        "text_response":"",
-                        # "data": None,
-                        # "visualization": None,
-                        # "visualization_notes": None
+                        "user_query": "Hi, can you tell me about the OEE data?",
+                        "text_response": introduction,
+                        "data": None,
+                        "visualization": None,
+                        "visualization_notes": None
                     })
                     st.session_state.initialized = True
 
@@ -2192,8 +1468,8 @@ if st.session_state.initialized:
                 st.write(response.get("user_query", ""))
 
             # Display assistant response with tables and visualizations
-            # with st.chat_message("assistant",avatar=assistant_avatar):
-                # st.write(response.get("text_response", ""))
+            with st.chat_message("assistant",avatar=assistant_avatar):
+                st.write(response.get("text_response", ""))
 
                 # Display data table if available
                 if response.get("data") is not None:
@@ -2201,8 +1477,7 @@ if st.session_state.initialized:
 
                 # Display visualization if available
                 if response.get("visualization") is not None:
-                    # st.plotly_chart(response["visualization"], use_container_width=True, key="response_vis_chart")
-                    st.plotly_chart(response["visualization"], use_container_width=True, key=f"main_fig_chart_{idx}")
+                    st.plotly_chart(response["visualization"], use_container_width=True,key=f"main_fig_chart_{idx}")
                     if response.get("visualization_notes"):
                         st.caption(response["visualization_notes"])
     else:
@@ -2425,170 +1700,895 @@ else:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# import streamlit as st
+# import snowflake.connector
+# import pandas as pd
+# import numpy as np
+# import os
+# import re
+# import json
+# from datetime import datetime
+
+# from prompts import generate_introduction, get_llm_response, call_openai
+# from rag_utils import (
+#     initialize_vector_store,
+#     process_query_with_rag,
+#     get_openai_embedding
+# )
+# from openai import OpenAI
+# import plotly.express as px
+# import plotly.graph_objects as go
+# from pathlib import Path
+# import uuid
+# unique_key = f"fig_chart_{uuid.uuid4()}"
+
+# # Safe full paths to avatars inside src folder
+# BASE_DIR = Path(__file__).parent
+# user_avatar = (BASE_DIR / "user.png").resolve().as_posix()
+# assistant_avatar = (BASE_DIR / "Assistant.png").resolve().as_posix()
+
+
+# # Set page config
+# st.set_page_config(
+#     page_title="OEE MONITORING AGENT",
+#     page_icon="📊",
+#     layout="wide"
+# )
+
+# # OpenAI client
+# # client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# GPT_MODEL = "gpt-4o"  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
+
+# # Initialize session state variables
+# if 'initialized' not in st.session_state:
+#     st.session_state.initialized = False
+# # if 'show_welcome_message' not in st.session_state:
+# #     st.session_state.show_welcome_message = True
+
+# if 'messages' not in st.session_state:
+#     st.session_state.messages = []
+# if 'full_responses' not in st.session_state:
+#     st.session_state.full_responses = []  # For storing full responses with dataframes and visualizations
+# if 'chat_history' not in st.session_state:
+#     st.session_state.chat_history = []  # For the OpenAI conversation history
+# if 'df' not in st.session_state:
+#     st.session_state.df = None
+# if 'vector_store' not in st.session_state:
+#     st.session_state.vector_store = None
+# if 'embedding_status' not in st.session_state:
+#     st.session_state.embedding_status = "Not Started"
+# if 'show_history' not in st.session_state:
+#     st.session_state.show_history = True  # Toggle for conversation memory
+# if 'debug_mode' not in st.session_state:
+#     st.session_state.debug_mode = False  # Toggle for developer mode
+# if 'table_name' not in st.session_state:
+#     st.session_state.table_name = "OEESHIFTWISE_AI"  # Default table name
+# if 'schema_columns' not in st.session_state:
+#     st.session_state.schema_columns = []  # To track schema changes
+
+# # Snowflake Connection Functions
+# # def init_snowflake_connection():
+# #     try:
+# #         conn = snowflake.connector.connect(
+# #             user=st.session_state.snowflake_user,
+# #             password=st.session_state.snowflake_password,
+# #             account=st.session_state.snowflake_account,
+# #             warehouse=st.session_state.snowflake_warehouse,
+# #             database='O3_AI_DB',
+# #             schema='O3_AI_DB_SCHEMA'
+# #         )
+# #         return conn
+# #     except Exception as e:
+# #         st.error(f"Error connecting to Snowflake: {e}")
+# #         return None
+
+# # Snowflake Connection Functions
+# def init_snowflake_connection():
+#     try:
+#         conn = snowflake.connector.connect(
+#             user=st.secrets["snowflake"]["user"],
+#             password=st.secrets["snowflake"]["password"],
+#             account=st.secrets["snowflake"]["account"],
+#             warehouse=st.secrets["snowflake"]["warehouse"],
+#             # database='O3_AI_DB',
+#             # schema='O3_AI_DB_SCHEMA'
+#             database="O3_AI_DB",
+#             schema="O3_AI_DB_SCHEMA"
+           
+#         )
+#         return conn
+#     except Exception as e:
+#         st.error(f"Error connecting to Snowflake: {e}")
+#         return None
+
+
+# def execute_snowflake_query(query):
+#     conn = init_snowflake_connection()
+#     if conn:
+#         try:
+#             cursor = conn.cursor()
+#             cursor.execute(query)
+#             result = cursor.fetchall()
+#             columns = [desc[0] for desc in cursor.description]
+#             df = pd.DataFrame(result, columns=columns)
+#             cursor.close()
+#             return df
+#         except Exception as e:
+#             st.error(f"Error executing query: {e}")
+#             return None
+#     return None
+
+# def determine_visualization_type(user_query, sql_query, result_df):
+#     """Determine the appropriate visualization type based on the query and results."""
+#     try:
+#         vis_prompt = f"""
+#         I need to visualize the following SQL query results for the question: "{user_query}"
+
+#         The SQL query was:
+#         ```sql
+#         {sql_query}
+#         ```
+
+#         The query returned {len(result_df)} rows with the following column names and data types:
+#         {[(col, str(result_df[col].dtype)) for col in result_df.columns]}
+
+#         Based on the user's question and the data returned, determine the most appropriate visualization type.
+#         Respond with a JSON object with the following structure:
+#         {{
+#             "viz_type": "line|bar|scatter|pie|histogram|heatmap|none",
+#             "x_column": "name of column to use for x-axis or categories",
+#             "y_column": "name of column to use for y-axis or values",
+#            "color_column": "name of column to use for color differentiation (optional, can be null)",
+
+#             "title": "Suggested title for the visualization",
+#             "description": "Brief rationale for why this visualization type is appropriate"
+#         }}
+
+#         Only suggest a visualization if it makes sense for the data and query.
+#         """
+
+#         system_prompt = "You are a data visualization expert that chooses appropriate chart types based on query results. Always respond with valid JSON."
+
+#         # Set response format to JSON for structured response
+#         vis_response = client.chat.completions.create(
+#             model=GPT_MODEL,
+#             messages=[
+#                 {"role": "system", "content": system_prompt},
+#                 {"role": "user", "content": vis_prompt}
+#             ],
+#             response_format={"type": "json_object"}
+#         )
+
+#         # Parse the JSON response
+#         # print(vis_response['usage'])
+#         # st.write(vis_response['usage'])
+#         vis_recommendation = json.loads(vis_response.choices[0].message.content)
+#         return vis_recommendation
+
+#     except Exception as e:
+#         st.warning(f"Could not determine visualization type: {str(e)}")
+#         return {"viz_type": "none"}
+
+# def create_visualization(result_df, vis_recommendation):
+#     """Create an appropriate visualization based on the recommendation."""
+#     try:
+#         viz_type = vis_recommendation.get("viz_type", "none")
+#         if viz_type == "none" or len(result_df) == 0:
+#             return None
+        
+#         # 🌈 Custom color palette
+#         custom_palette = ["#242bf0", "#7ECF9A"]
+
+
+#         x_col = vis_recommendation.get("x_column")
+#         y_col = vis_recommendation.get("y_column")
+#         color_col = vis_recommendation.get("color_column")
+#         title = vis_recommendation.get("title", "Data Visualization")
+
+#         # Check if the recommended columns exist in the dataframe
+#         available_cols = result_df.columns.tolist()
+#         if x_col and x_col not in available_cols:
+#             x_col = available_cols[0] if available_cols else None
+#         if y_col and y_col not in available_cols:
+#             y_col = available_cols[1] if len(available_cols) > 1 else available_cols[0] if available_cols else None
+#         if color_col and color_col not in available_cols:
+#             color_col = None
+
+#         if not x_col or not y_col:
+#             return None
+
+#         # Create the appropriate plot based on visualization type
+#         if viz_type == "bar":
+#             # Handle aggregation if needed
+#             if len(result_df) > 25:  # Too many bars becomes unreadable
+#                 # Try to aggregate data if it makes sense
+#                 result_df = result_df.groupby(x_col, as_index=False)[y_col].agg('sum')
+
+#             fig = px.bar(result_df, x=x_col, y=y_col, color=color_col, title=title,color_discrete_sequence=custom_palette)
+#             # fig = px.bar(result_df, x=x_col, y=y_col, title=title,color_discrete_sequence=custom_palette)
+
+#         elif viz_type == "line":
+#             # Sort by x if it's a datetime or numeric column
+#             if pd.api.types.is_datetime64_any_dtype(result_df[x_col]) or pd.api.types.is_numeric_dtype(result_df[x_col]):
+#                 result_df = result_df.sort_values(by=x_col)
+
+#             fig = px.line(result_df, x=x_col, y=y_col, color=color_col, title=title, markers=True)
+#             # fig = px.line(result_df, x=x_col, y=y_col, title=title, markers=True,color_discrete_sequence=custom_palette)
+
+#         elif viz_type == "scatter":
+#             fig = px.scatter(result_df, x=x_col, y=y_col, color=color_col, title=title)
+#             # fig = px.scatter(result_df, x=x_col, y=y_col, title=title,color_discrete_sequence=custom_palette)
+
+#         elif viz_type == "pie":
+#             fig = px.pie(result_df, names=x_col, values=y_col, title=title,color_discrete_sequence=custom_palette)
+
+#         elif viz_type == "histogram":
+#             fig = px.histogram(result_df, x=x_col, title=title,color_discrete_sequence=custom_palette)
+
+#         elif viz_type == "heatmap":
+#             # Create a pivot table for heatmap
+#             if color_col:
+#                 pivot_df = result_df.pivot_table(values=color_col, index=y_col, columns=x_col, aggfunc='mean')
+#                 fig = px.imshow(pivot_df, title=title)
+#             else:
+#                 return None
+#         else:
+#             return None
+
+#         # Style the figure for better appearance
+#         fig.update_layout(
+#             template="plotly_dark",
+#             height=500,
+#             margin=dict(l=50, r=50, t=80, b=50)
+#         )
+
+#         return fig
+
+#     except Exception as e:
+#         st.warning(f"Could not create visualization: {str(e)}")
+#         return None
+
+# def generate_nlp_summary(user_query, sql_query, result_df):
+#     """Generate a natural language summary of SQL query results."""
+#     try:
+#         with st.spinner("Generating natural language summary..."):
+#             nlp_summary_prompt = f"""
+#             I need a natural language summary of the following SQL query results for the question: "{user_query}"
+
+#             The SQL query was:
+#             ```sql
+#             {sql_query}
+#             ```
+
+#             The query returned {len(result_df)} rows with the following data:
+#             {result_df.to_string(index=False, max_rows=10)}
+
+#             Please provide a 1-2 sentence natural language summary of these results that directly answers the user's question.
+#             Focus on the key metrics, highest/lowest values, or trends as appropriate.
+#             Be specific and include the actual values from the data.
+#             """
+
+#             nlp_summary = call_openai(nlp_summary_prompt, "You are a data analyst summarizing SQL query results in plain language.")
+#             return nlp_summary
+#     except Exception as e:
+#         st.warning(f"Could not generate natural language summary: {str(e)}")
+#         return "I couldn't generate a natural language summary for these results."
+
+# # UI Components
+# # Title and sidebar
+# # st.title("OEE MONITORING AI AGENT")
+# # st.markdown("""
+# # <h1 style='
+# #     text-align: center;
+# #     font-size: 50px;
+# #     font-weight: 900;
+# #     letter-spacing: 2px;
+# #     color: #1f3b73;
+# #     text-shadow: 2px 2px 4px #7ECF9A;
+# # '>
+# #   OEE MONITORING AI AGENT
+# # </h1>
+# # """, unsafe_allow_html=True)
+
+# # st.markdown("""
+# # <h1 style='
+# #     text-align: center;
+# #     font-size: 50px;
+# #     font-weight: 900;
+# #     letter-spacing: 2px;
+
+# #     color: rgb(81,103,246);
+# #     text-shadow: 2px 2px 4px #7ECF9A;'
+# #   OEE MONITORING AI AGENT
+# # </h1>
+# # """, unsafe_allow_html=True)
+
+
+
+# # st.markdown("""
+# # <h1 style='
+# #     text-align: center;
+# #     font-size: 50px;
+# #     font-weight: 900;
+# #     letter-spacing: 2px;
+# #     color: rgb(36, 43, 240);
+# #     text-shadow: 2px 2px 4px #7ECF9A;
+# # '>
+# #   OEE MONITORING AI AGENT
+# # </h1>
+# # """, unsafe_allow_html=True)
+
+# # st.markdown("""
+# # <h1 style='text-align: center; font-size: 50px;'>
+# #   <span style='color:#1f3b73;'>OEE MONITORING</span>
+# #   <span style='color:#7ECF9A;'>AI AGENT</span>
+# # </h1>
+# # """, unsafe_allow_html=True)
+
+
+
+# # Sidebar for Snowflake credentials and OpenAI API key
+# with st.sidebar:
+#     st.header("Connection Settings")
+
+#     # Check OpenAI API key
+#     # api_key = os.environ.get("OPENAI_API_KEY")
+#     # api_key = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+#     api_key = st.secrets.get("OPENAI_API_KEY")
+#     if api_key:
+#         st.success("OpenAI API Key is configured")
+#     else:
+#         st.error("OpenAI API Key is missing")
+#         st.info("Please add your OpenAI API key to use this application")
+
+#     st.header("Chat Settings")
+#     # Toggle for conversation memory
+#     st.session_state.show_history = st.checkbox("Enable conversation memory", value=st.session_state.show_history)
+#     if st.session_state.show_history:
+#         st.success("Conversation memory is enabled")
+#         st.info("The chatbot will remember previous messages for context")
+#     else:
+#         st.info("Conversation memory is disabled")
+
+#     # Developer Mode toggle
+#     if 'debug_mode' not in st.session_state:
+#         st.session_state.debug_mode = False
+#     st.session_state.debug_mode = st.checkbox("Developer Mode", value=st.session_state.debug_mode)
+#     if st.session_state.debug_mode:
+#         st.success("Developer Mode is enabled")
+#         st.info("SQL queries will be shown in responses")
+#     else:
+#         st.info("Developer Mode is disabled")
+#         st.info("SQL queries will be hidden in responses")
+
+#     if st.button("Clear Chat History"):
+#         st.session_state.messages = []
+#         st.session_state.chat_history = []
+#         st.session_state.full_responses = []
+#         st.success("Chat history cleared!")
+#         st.rerun()
+
+#     st.header("Snowflake Connection")
+
+#     # if not st.session_state.initialized:
+#     #     st.session_state.snowflake_user = st.text_input("Snowflake Username")
+#     #     st.session_state.snowflake_password = st.text_input("Snowflake Password", type="password")
+#     #     st.session_state.snowflake_account = st.text_input("Snowflake Account")
+#     #     st.session_state.snowflake_warehouse = st.text_input("Snowflake Warehouse")
+
+#     #     connect_button = st.button("Connect")
+
+#     #     if connect_button:
+#     #         # Verify API key
+#     #         if not api_key:
+#     #             st.error("Please provide an OpenAI API key before connecting")
+#     #             st.stop()
+
+#     #         # Now connect to Snowflake
+#     #         conn = init_snowflake_connection()
+#     #         if conn:
+#     #             st.success("Connected to Snowflake!")
+
+#     # Check Snowflake credentials
+#     snowflake_creds = st.secrets.get("snowflake")
+#     if snowflake_creds and all(k in snowflake_creds for k in ["user", "password", "account", "warehouse"]):
+#         # st.success("Snowflake credentials are configured")
+
+#         # Auto-connect to Snowflake if not initialized
+#         if not st.session_state.initialized:
+#             # Initialize connection
+#             with st.spinner("Connecting to Snowflake..."):
+#                 # Verify API key
+#                 if not api_key:
+#                     st.error("Please provide an OpenAI API key before connecting")
+#                     st.stop()
+
+#                 # Now connect to Snowflake
+#                 conn = init_snowflake_connection()
+#                 if conn:
+#                     st.success("Connected to Snowflake!")
+#                 # Get sample data for the model to understand the schema
+#                 with st.spinner("Fetching sample data..."):
+#                   sample_query = f"SELECT * FROM {st.session_state.table_name} LIMIT 1000"
+#                   df = execute_snowflake_query(sample_query)
+#                   if df is not None:
+#                     st.session_state.df = df
+#                     # Save schema information for checking changes later
+#                     st.session_state.schema_columns = list(df.columns)  # Store column names
+
+#                     # Generate introduction about the data
+#                     schema_info = {col: str(df[col].dtype) for col in df.columns}
+#                     introduction = generate_introduction(schema_info, table_name=st.session_state.table_name)
+#                     # st.session_state.messages.append({"role": "assistant", "content": introduction})
+
+#                     # Add introduction to full_responses
+#                     st.session_state.full_responses.append({
+#                         "user_query": "Hi, how can I help you?",
+#                         "text_response":"",
+#                         # "data": None,
+#                         # "visualization": None,
+#                         # "visualization_notes": None
+#                     })
+#                     st.session_state.initialized = True
+
+#                     # Initialize vector store with the data
+#                     progress_placeholder = st.empty()
+#                     progress_placeholder.info("Creating embeddings and initializing vector store...")
+#                     st.session_state.embedding_status = "In Progress"
+#                     st.session_state.vector_store = initialize_vector_store(df)
+#                     st.session_state.embedding_status = "Completed"
+#                     progress_placeholder.success("Embeddings created successfully!")
+#     else:
+#         # st.success("Connected to Snowflake!")
+#         st.info(f"Current table: {st.session_state.table_name}")
+#         st.info(f"Embedding Status: {st.session_state.embedding_status}")
+
+#         if st.button("Disconnect"):
+#             st.session_state.initialized = False
+#             st.session_state.messages = []
+#             st.session_state.chat_history = []  # Clear conversation history as well
+#             st.session_state.full_responses = []  # Clear full responses with tables and visualizations
+#             st.session_state.df = None
+#             st.session_state.vector_store = None
+#             st.session_state.embedding_status = "Not Started"
+#             st.rerun()
+
 # # Chat interface
 # if st.session_state.initialized:
-#     # Display all past messages (except the most recent interaction)
-#     for idx, response in enumerate(st.session_state.full_responses[:-1] if st.session_state.full_responses else []):
-#         with st.chat_message("user", avatar=user_avatar):
-#             st.write(response.get("user_query", ""))
-#         with st.chat_message("assistant", avatar=assistant_avatar):
-#             st.write(response.get("text_response", ""))
-#             if response.get("data") is not None:
-#                 st.dataframe(response["data"])
-#             if response.get("visualization") is not None:
-#                 st.plotly_chart(response["visualization"], use_container_width=True, key=f"history_fig_chart_{idx}")
-#                 if response.get("visualization_notes"):
-#                     st.caption(response["visualization_notes"])
-#     if st.session_state.full_responses:
-#         latest = st.session_state.full_responses[-1]
-#         with st.chat_message("user", avatar=user_avatar):
-#             st.write(latest.get("user_query", ""))
-#         with st.chat_message("assistant", avatar=assistant_avatar):
-#             st.write(latest.get("text_response", ""))
-#             if latest.get("data") is not None:
-#                 st.dataframe(latest["data"])
-#             if latest.get("visualization") is not None:
-#                 st.plotly_chart(latest["visualization"], use_container_width=True, key="latest_fig_chart")
-#                 if latest.get("visualization_notes"):
-#                     st.caption(latest["visualization_notes"])
-#     # Create a separate placeholder for the new query and response
-#     new_message_placeholder = st.empty()
-#     # User input for new query
-#     if user_query := st.chat_input("What would you like to know about the OEE data?"):
+#     # Display chat messages and full responses (with tables and visualizations)
+#     if len(st.session_state.full_responses) > 0:
+#         # Display messages with full content (tables and visualizations)
+#         for idx, response in enumerate(st.session_state.full_responses):
+#             # Display user message
+#             with st.chat_message("user",avatar=user_avatar):
+#                 st.write(response.get("user_query", ""))
+
+#             # Display assistant response with tables and visualizations
+#             # with st.chat_message("assistant",avatar=assistant_avatar):
+#                 # st.write(response.get("text_response", ""))
+
+#                 # Display data table if available
+#                 if response.get("data") is not None:
+#                     st.dataframe(response["data"])
+
+#                 # Display visualization if available
+#                 if response.get("visualization") is not None:
+#                     # st.plotly_chart(response["visualization"], use_container_width=True, key="response_vis_chart")
+#                     st.plotly_chart(response["visualization"], use_container_width=True, key=f"main_fig_chart_{idx}")
+#                     if response.get("visualization_notes"):
+#                         st.caption(response["visualization_notes"])
+#     else:
+#         # Fall back to just displaying text messages if no full responses exist yet
+#         for message in st.session_state.messages:
+#             with st.chat_message(message["role"]):
+#                 st.write(message["content"])
+
+#     # User input
+#     user_query = st.chat_input("What would you like to know about the OEE data?")
+#     if user_query:
 #         # Add to display messages
 #         st.session_state.messages.append({"role": "user", "content": user_query})
+#         # Add to chat history for OpenAI (only if history is enabled)
 #         if st.session_state.show_history:
 #             st.session_state.chat_history.append({"role": "user", "content": user_query})
-#         # Use the placeholder to display the new user query and spinner
-#         with new_message_placeholder.container():
-#             with st.chat_message("user", avatar=user_avatar):
-#                 st.write(user_query)
-#             # Show spinner while generating response
-#             with st.spinner("Generating response..."):
-#                 # Get column info for context
-#                 column_info = {col: str(st.session_state.df[col].dtype) for col in st.session_state.df.columns}
-#                 conversation_history = st.session_state.chat_history if st.session_state.show_history else None
-#                 # Process query with RAG
-#                 if st.session_state.vector_store and st.session_state.embedding_status == "Completed":
-#                     rag_response = process_query_with_rag(
-#                         user_query=user_query,
-#                         vector_store=st.session_state.vector_store,
-#                         table_name=st.session_state.table_name,
-#                         schema_name="O3_AI_DB_SCHEMA",
-#                         database_name="O3_AI_DB",
-#                         column_info=column_info,
-#                         conversation_history=conversation_history
-#                     )
-#                     if "```sql" in rag_response:
-#                         sql_query = rag_response.split("```sql")[1].split("```")[0].strip()
-#                         result_df = execute_snowflake_query(sql_query)
-#                         if result_df is not None and not result_df.empty:
-#                             nlp_summary = generate_nlp_summary(user_query, sql_query, result_df)
-#                             if st.session_state.debug_mode:
-#                                 final_response = f"Based on your question, I generated this SQL query:\n```sql\n{sql_query}\n```\n\n{nlp_summary}\n\nHere are the detailed results:\n"
-#                             else:
-#                                 final_response = f"{nlp_summary}\n\nHere are the detailed results:\n"
-#                             with st.spinner("Creating visualization..."):
-#                                 vis_recommendation = determine_visualization_type(user_query, sql_query, result_df)
-#                                 log_entry = {
-#                                     "user_query": user_query,
-#                                     "sql_query": sql_query,
-#                                     "vis_recommendation": vis_recommendation,
-#                                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-#                                 }
-#                                 with open("vis_logs.txt", "a", encoding="utf-8") as log_file:
-#                                     log_file.write(json.dumps(log_entry, indent=2))
-#                                     log_file.write("\n\n" + "="*80 + "\n\n")
-#                                 fig = create_visualization(result_df, vis_recommendation)
-#                             with st.chat_message("assistant", avatar=assistant_avatar):
-#                                 st.write(final_response)
-#                                 st.dataframe(result_df)
-#                                 if fig:
-#                                     st.plotly_chart(fig, use_container_width=True, key="main_fig_chart")
-#                                     description = vis_recommendation.get("description", "")
-#                                     if description:
-#                                         st.caption(f"Visualization notes: {description}")
-#                             response_content = final_response + "[Results shown in table format and visualization]"
-#                             st.session_state.messages.append({"role": "assistant", "content": response_content})
-#                             visualization_notes = f"Visualization notes: {vis_recommendation.get('description')}" if fig and vis_recommendation.get("description") else ""
-#                             st.session_state.full_responses.append({
-#                                 "user_query": user_query,
-#                                 "text_response": final_response,
-#                                 "data": result_df,
-#                                 "visualization": fig,
-#                                 "visualization_notes": visualization_notes,
-#                                 "sql_query": sql_query if st.session_state.debug_mode else None
-#                             })
-#                             if st.session_state.show_history:
-#                                 st.session_state.chat_history.append({"role": "assistant", "content": response_content})
-#                         elif result_df is not None and result_df.empty:
-#                             no_data_msg = "I apologize, no results found regarding your query."
-#                             with st.chat_message("assistant", avatar=assistant_avatar):
-#                                 st.warning(no_data_msg)
-#                             st.session_state.messages.append({"role": "assistant", "content": no_data_msg})
-#                             st.session_state.full_responses.append({
-#                                 "user_query": user_query,
-#                                 "text_response": no_data_msg,
-#                                 "data": None,
-#                                 "visualization_notes": None,
-#                                 "sql_query": sql_query if st.session_state.debug_mode else None
-#                             })
-#                             if st.session_state.show_history:
-#                                 st.session_state.chat_history.append({"role": "assistant", "content": no_data_msg})
+
+#         with st.chat_message("user",avatar=user_avatar):
+#             st.write(user_query)
+
+#         with st.spinner("Generating response..."):
+#             # Get column info for context
+#             column_info = {col: str(st.session_state.df[col].dtype) for col in st.session_state.df.columns}
+
+#             # Prepare conversation history if enabled
+#             conversation_history = st.session_state.chat_history if st.session_state.show_history else None
+
+#             # Process query with RAG
+#             if st.session_state.vector_store and st.session_state.embedding_status == "Completed":
+#                 rag_response = process_query_with_rag(
+#                     user_query=user_query,
+#                     vector_store=st.session_state.vector_store,
+#                     table_name=st.session_state.table_name,
+#                     # schema_name="O3_AI_DB_SCHEMA",
+#                     # database_name="O3_AI_DB",
+#                     schema_name="O3_AI_DB_SCHEMA",
+#                     database_name="O3_AI_DB",
+#                     column_info=column_info,
+#                     conversation_history=conversation_history
+#                 )
+
+#                 # Extract SQL query from response if available
+#                 if "```sql" in rag_response:
+#                     sql_query = rag_response.split("```sql")[1].split("```")[0].strip()
+
+#                     # Execute SQL query
+#                     result_df = execute_snowflake_query(sql_query)
+
+#                     # Format final response
+#                     if result_df is not None and not result_df.empty:
+#                         # Generate natural language summary
+#                         nlp_summary = generate_nlp_summary(user_query, sql_query, result_df)
+
+#                         # Format response based on debug mode
+#                         if st.session_state.debug_mode:
+#                             # Show SQL in debug mode
+#                             final_response = f"Based on your question, I generated this SQL query:\n```sql\n{sql_query}\n```\n\n"
+#                             # Add the natural language summary
+#                             final_response += f"{nlp_summary}\n\n"
+#                             # Add the result
+#                             final_response += "Here are the detailed results:\n"
 #                         else:
-#                             if st.session_state.debug_mode:
-#                                 final_response = f"I generated this SQL query, but there was an error executing it:\n```sql\n{sql_query}\n```"
-#                             else:
-#                                 final_response = f"I couldn't retrieve the data you asked for. There might be an issue with the query or connection."
-#                             with st.chat_message("assistant", avatar=assistant_avatar):
-#                                 st.write(final_response)
-#                             st.session_state.messages.append({"role": "assistant", "content": final_response})
-#                             st.session_state.full_responses.append({
-#                                 "user_query": user_query,
-#                                 "text_response": final_response,
-#                                 "data": None,
-#                                 "visualization": None,
-#                                 "visualization_notes": None,
-#                                 "sql_query": sql_query if st.session_state.debug_mode else None
-#                             })
-#                             if st.session_state.show_history:
-#                                 st.session_state.chat_history.append({"role": "assistant", "content": final_response})
-#                     else:
-#                         with st.chat_message("assistant", avatar=assistant_avatar):
-#                             st.write(rag_response)
-#                         st.session_state.messages.append({"role": "assistant", "content": rag_response})
+#                             # Hide SQL in regular mode - just show the summary
+#                             final_response = f"{nlp_summary}\n\n"
+#                             # Add the result
+#                             final_response += "Here are the detailed results:\n"
+
+#                         # Determine appropriate visualization
+#                         with st.spinner("Creating visualization..."):
+#                             vis_recommendation = determine_visualization_type(user_query, sql_query, result_df)
+#                             # 🔍 Debug: show what the LLM recommended
+#                             from datetime import datetime  # 💡 put this at the top of your file if not already
+
+#                             # 📦 Build log entry
+#                             log_entry = {
+#                               "user_query": user_query,
+#                               "sql_query": sql_query,
+#                               "vis_recommendation": vis_recommendation
+# }
+
+#                             # 🕒 Add timestamp to log
+#                             log_entry["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+#                             # 📝 Save it to a file called vis_logs.txt
+#                             with open("vis_logs.txt", "a", encoding="utf-8") as log_file:
+#                                 log_file.write(json.dumps(log_entry, indent=2))
+#                                 log_file.write("\n\n" + "="*80 + "\n\n")
+
+
+#                             fig = create_visualization(result_df, vis_recommendation)
+
+#                         with st.chat_message("assistant",avatar=assistant_avatar):
+#                             st.write(final_response)
+
+#                             # Display the data table
+#                             st.dataframe(result_df)
+
+#                             # Display visualization if available
+#                             if fig:
+#                                 st.plotly_chart(fig, use_container_width=True,key="main_fig_chart")
+#                                 description = vis_recommendation.get("description", "")
+#                                 if description:
+#                                     st.caption(f"Visualization notes: {description}")
+
+#                         # Save message without the dataframe (for OpenAI history)
+#                         response_content = final_response + "[Results shown in table format and visualization]"
+#                         st.session_state.messages.append({
+#                             "role": "assistant", 
+#                             "content": response_content
+#                         })
+
+#                         # Store full response with dataframe and visualization for display
+#                         visualization_notes = ""
+#                         if fig and vis_recommendation.get("description"):
+#                             visualization_notes = f"Visualization notes: {vis_recommendation.get('description')}"
+
 #                         st.session_state.full_responses.append({
 #                             "user_query": user_query,
-#                             "text_response": rag_response,
+#                             "text_response": final_response,
+#                             "data": result_df,
+#                             "visualization": fig,
+#                             "visualization_notes": visualization_notes,
+#                             "sql_query": sql_query if st.session_state.debug_mode else None
+#                         })
+
+#                         # Add to chat history for OpenAI (only if history is enabled)
+#                         if st.session_state.show_history:
+#                             st.session_state.chat_history.append({
+#                                 "role": "assistant", 
+#                                 "content": response_content
+#                             })
+
+#                     elif result_df is not None and result_df.empty:
+#                         no_data_msg='I apologize,no results found regarding your query.'
+#                         with st.chat_message("assistant",avatar=assistant_avatar):
+#                             st.warning(no_data_msg)  
+#                         st.session_state.messages.append({"role":"assistant","content":no_data_msg})
+#                         st.session_state.full_responses.append({
+#                             "user_query":user_query,
+#                             "text_response":no_data_msg,
+#                             "data": None,
+#                             "visualization_notes": None,
+#                             "sql_query": sql_query if st.session_state.debug_mode else None
+#                         }) 
+#                         if st.session_state.show_history:
+#                             st.session_state.chat_history.append({"role":"assistant","content": no_data_msg})         
+#                     else:
+#                         # Format error response based on debug mode
+#                         if st.session_state.debug_mode:
+#                             final_response = f"I generated this SQL query, but there was an error executing it:\n```sql\n{sql_query}\n```"
+#                         else:
+#                             final_response = f"I couldn't retrieve the data you asked for. There might be an issue with the query or connection."
+
+#                         with st.chat_message("assistant",avatar=assistant_avatar):
+#                             st.write(final_response)
+#                         st.session_state.messages.append({"role": "assistant", "content": final_response})
+
+#                         # Store error in full_responses for consistent display
+#                         st.session_state.full_responses.append({
+#                             "user_query": user_query,
+#                             "text_response": final_response,
 #                             "data": None,
 #                             "visualization": None,
-#                             "visualization_notes": None
+#                             "visualization_notes": None,
+#                             "sql_query": sql_query if st.session_state.debug_mode else None
 #                         })
+
+#                         # Add to chat history for OpenAI (only if history is enabled)
 #                         if st.session_state.show_history:
-#                             st.session_state.chat_history.append({"role": "assistant", "content": rag_response})
+#                             st.session_state.chat_history.append({"role": "assistant", "content": final_response})
 #                 else:
-#                     llm_response = get_llm_response(
-#                         user_query=user_query,
-#                         table_name=st.session_state.table_name,
-#                         schema_name="O3_AI_DB",
-#                         database_name="O3_AI_DB_SCHEMA",
-#                         column_info=column_info,
-#                         conversation_history=conversation_history
-#                     )
-#                     with st.chat_message("assistant", avatar=assistant_avatar):
-#                         st.write(llm_response)
-#                     st.session_state.messages.append({"role": "assistant", "content": llm_response})
+#                     # If no SQL was generated
+#                     with st.chat_message("assistant",avatar=assistant_avatar):
+#                         st.write(rag_response)
+#                     st.session_state.messages.append({"role": "assistant", "content": rag_response})
+
+#                     # Store in full_responses for consistent display
 #                     st.session_state.full_responses.append({
 #                         "user_query": user_query,
-#                         "text_response": llm_response,
+#                         "text_response": rag_response,
 #                         "data": None,
 #                         "visualization": None,
 #                         "visualization_notes": None
 #                     })
+
+#                     # Add to chat history for OpenAI (only if history is enabled)
 #                     if st.session_state.show_history:
-#                         st.session_state.chat_history.append({"role": "assistant", "content": llm_response})
-#         # Clear the placeholder after the response is generated to avoid re-rendering
-#         st.rerun()
+#                         st.session_state.chat_history.append({"role": "assistant", "content": rag_response})
+#             else:
+#                 # Fallback to regular LLM response if vector store not ready
+#                 llm_response = get_llm_response(
+#                     user_query=user_query,
+#                     table_name=st.session_state.table_name,
+#                     schema_name="O3_AI_DB",
+#                     database_name="O3_AI_DB_SCHEMA",
+#                     column_info=column_info,
+#                     conversation_history=conversation_history
+#                 )
+#                 with st.chat_message("assistant",avatar=assistant_avatar):
+#                     st.write(llm_response)
+#                 st.session_state.messages.append({"role": "assistant", "content": llm_response})
+
+#                 # Store in full_responses for consistent display
+#                 st.session_state.full_responses.append({
+#                     "user_query": user_query,
+#                     "text_response": llm_response,
+#                     "data": None,
+#                     "visualization": None,
+#                     "visualization_notes": None
+#                 })
+
+#                 # Add to chat history for OpenAI (only if history is enabled)
+#                 if st.session_state.show_history:
+#                     st.session_state.chat_history.append({"role": "assistant", "content": llm_response})
 # else:
 #     st.info("Please connect to Snowflake to use the chatbot.")
+
+
+
+
+
+
+# # # Chat interface
+# # if st.session_state.initialized:
+# #     # Display all past messages (except the most recent interaction)
+# #     for idx, response in enumerate(st.session_state.full_responses[:-1] if st.session_state.full_responses else []):
+# #         with st.chat_message("user", avatar=user_avatar):
+# #             st.write(response.get("user_query", ""))
+# #         with st.chat_message("assistant", avatar=assistant_avatar):
+# #             st.write(response.get("text_response", ""))
+# #             if response.get("data") is not None:
+# #                 st.dataframe(response["data"])
+# #             if response.get("visualization") is not None:
+# #                 st.plotly_chart(response["visualization"], use_container_width=True, key=f"history_fig_chart_{idx}")
+# #                 if response.get("visualization_notes"):
+# #                     st.caption(response["visualization_notes"])
+# #     if st.session_state.full_responses:
+# #         latest = st.session_state.full_responses[-1]
+# #         with st.chat_message("user", avatar=user_avatar):
+# #             st.write(latest.get("user_query", ""))
+# #         with st.chat_message("assistant", avatar=assistant_avatar):
+# #             st.write(latest.get("text_response", ""))
+# #             if latest.get("data") is not None:
+# #                 st.dataframe(latest["data"])
+# #             if latest.get("visualization") is not None:
+# #                 st.plotly_chart(latest["visualization"], use_container_width=True, key="latest_fig_chart")
+# #                 if latest.get("visualization_notes"):
+# #                     st.caption(latest["visualization_notes"])
+# #     # Create a separate placeholder for the new query and response
+# #     new_message_placeholder = st.empty()
+# #     # User input for new query
+# #     if user_query := st.chat_input("What would you like to know about the OEE data?"):
+# #         # Add to display messages
+# #         st.session_state.messages.append({"role": "user", "content": user_query})
+# #         if st.session_state.show_history:
+# #             st.session_state.chat_history.append({"role": "user", "content": user_query})
+# #         # Use the placeholder to display the new user query and spinner
+# #         with new_message_placeholder.container():
+# #             with st.chat_message("user", avatar=user_avatar):
+# #                 st.write(user_query)
+# #             # Show spinner while generating response
+# #             with st.spinner("Generating response..."):
+# #                 # Get column info for context
+# #                 column_info = {col: str(st.session_state.df[col].dtype) for col in st.session_state.df.columns}
+# #                 conversation_history = st.session_state.chat_history if st.session_state.show_history else None
+# #                 # Process query with RAG
+# #                 if st.session_state.vector_store and st.session_state.embedding_status == "Completed":
+# #                     rag_response = process_query_with_rag(
+# #                         user_query=user_query,
+# #                         vector_store=st.session_state.vector_store,
+# #                         table_name=st.session_state.table_name,
+# #                         schema_name="O3_AI_DB_SCHEMA",
+# #                         database_name="O3_AI_DB",
+# #                         column_info=column_info,
+# #                         conversation_history=conversation_history
+# #                     )
+# #                     if "```sql" in rag_response:
+# #                         sql_query = rag_response.split("```sql")[1].split("```")[0].strip()
+# #                         result_df = execute_snowflake_query(sql_query)
+# #                         if result_df is not None and not result_df.empty:
+# #                             nlp_summary = generate_nlp_summary(user_query, sql_query, result_df)
+# #                             if st.session_state.debug_mode:
+# #                                 final_response = f"Based on your question, I generated this SQL query:\n```sql\n{sql_query}\n```\n\n{nlp_summary}\n\nHere are the detailed results:\n"
+# #                             else:
+# #                                 final_response = f"{nlp_summary}\n\nHere are the detailed results:\n"
+# #                             with st.spinner("Creating visualization..."):
+# #                                 vis_recommendation = determine_visualization_type(user_query, sql_query, result_df)
+# #                                 log_entry = {
+# #                                     "user_query": user_query,
+# #                                     "sql_query": sql_query,
+# #                                     "vis_recommendation": vis_recommendation,
+# #                                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+# #                                 }
+# #                                 with open("vis_logs.txt", "a", encoding="utf-8") as log_file:
+# #                                     log_file.write(json.dumps(log_entry, indent=2))
+# #                                     log_file.write("\n\n" + "="*80 + "\n\n")
+# #                                 fig = create_visualization(result_df, vis_recommendation)
+# #                             with st.chat_message("assistant", avatar=assistant_avatar):
+# #                                 st.write(final_response)
+# #                                 st.dataframe(result_df)
+# #                                 if fig:
+# #                                     st.plotly_chart(fig, use_container_width=True, key="main_fig_chart")
+# #                                     description = vis_recommendation.get("description", "")
+# #                                     if description:
+# #                                         st.caption(f"Visualization notes: {description}")
+# #                             response_content = final_response + "[Results shown in table format and visualization]"
+# #                             st.session_state.messages.append({"role": "assistant", "content": response_content})
+# #                             visualization_notes = f"Visualization notes: {vis_recommendation.get('description')}" if fig and vis_recommendation.get("description") else ""
+# #                             st.session_state.full_responses.append({
+# #                                 "user_query": user_query,
+# #                                 "text_response": final_response,
+# #                                 "data": result_df,
+# #                                 "visualization": fig,
+# #                                 "visualization_notes": visualization_notes,
+# #                                 "sql_query": sql_query if st.session_state.debug_mode else None
+# #                             })
+# #                             if st.session_state.show_history:
+# #                                 st.session_state.chat_history.append({"role": "assistant", "content": response_content})
+# #                         elif result_df is not None and result_df.empty:
+# #                             no_data_msg = "I apologize, no results found regarding your query."
+# #                             with st.chat_message("assistant", avatar=assistant_avatar):
+# #                                 st.warning(no_data_msg)
+# #                             st.session_state.messages.append({"role": "assistant", "content": no_data_msg})
+# #                             st.session_state.full_responses.append({
+# #                                 "user_query": user_query,
+# #                                 "text_response": no_data_msg,
+# #                                 "data": None,
+# #                                 "visualization_notes": None,
+# #                                 "sql_query": sql_query if st.session_state.debug_mode else None
+# #                             })
+# #                             if st.session_state.show_history:
+# #                                 st.session_state.chat_history.append({"role": "assistant", "content": no_data_msg})
+# #                         else:
+# #                             if st.session_state.debug_mode:
+# #                                 final_response = f"I generated this SQL query, but there was an error executing it:\n```sql\n{sql_query}\n```"
+# #                             else:
+# #                                 final_response = f"I couldn't retrieve the data you asked for. There might be an issue with the query or connection."
+# #                             with st.chat_message("assistant", avatar=assistant_avatar):
+# #                                 st.write(final_response)
+# #                             st.session_state.messages.append({"role": "assistant", "content": final_response})
+# #                             st.session_state.full_responses.append({
+# #                                 "user_query": user_query,
+# #                                 "text_response": final_response,
+# #                                 "data": None,
+# #                                 "visualization": None,
+# #                                 "visualization_notes": None,
+# #                                 "sql_query": sql_query if st.session_state.debug_mode else None
+# #                             })
+# #                             if st.session_state.show_history:
+# #                                 st.session_state.chat_history.append({"role": "assistant", "content": final_response})
+# #                     else:
+# #                         with st.chat_message("assistant", avatar=assistant_avatar):
+# #                             st.write(rag_response)
+# #                         st.session_state.messages.append({"role": "assistant", "content": rag_response})
+# #                         st.session_state.full_responses.append({
+# #                             "user_query": user_query,
+# #                             "text_response": rag_response,
+# #                             "data": None,
+# #                             "visualization": None,
+# #                             "visualization_notes": None
+# #                         })
+# #                         if st.session_state.show_history:
+# #                             st.session_state.chat_history.append({"role": "assistant", "content": rag_response})
+# #                 else:
+# #                     llm_response = get_llm_response(
+# #                         user_query=user_query,
+# #                         table_name=st.session_state.table_name,
+# #                         schema_name="O3_AI_DB",
+# #                         database_name="O3_AI_DB_SCHEMA",
+# #                         column_info=column_info,
+# #                         conversation_history=conversation_history
+# #                     )
+# #                     with st.chat_message("assistant", avatar=assistant_avatar):
+# #                         st.write(llm_response)
+# #                     st.session_state.messages.append({"role": "assistant", "content": llm_response})
+# #                     st.session_state.full_responses.append({
+# #                         "user_query": user_query,
+# #                         "text_response": llm_response,
+# #                         "data": None,
+# #                         "visualization": None,
+# #                         "visualization_notes": None
+# #                     })
+# #                     if st.session_state.show_history:
+# #                         st.session_state.chat_history.append({"role": "assistant", "content": llm_response})
+# #         # Clear the placeholder after the response is generated to avoid re-rendering
+# #         st.rerun()
+# # else:
+# #     st.info("Please connect to Snowflake to use the chatbot.")
 
