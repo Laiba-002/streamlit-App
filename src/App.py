@@ -3000,7 +3000,8 @@ if st.session_state.initialized:
     # Create a separate placeholder for the new query and response
     new_message_placeholder = st.empty()
     # 🌟 Welcome message before chat starts
-    if not st.session_state.full_responses:
+    # if not st.session_state.full_responses:
+    if "messages" not in st.session_state or len(st.session_state.messages) == 0:
         with st.chat_message("assistant", avatar=assistant_avatar):
             st.write("Hi! How can I help you today?")
 
