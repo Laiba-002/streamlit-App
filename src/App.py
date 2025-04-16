@@ -2999,6 +2999,10 @@ if st.session_state.initialized:
                     st.caption(latest["visualization_notes"])                
     # Create a separate placeholder for the new query and response
     new_message_placeholder = st.empty()
+    # 🌟 Welcome message before chat starts
+    if not st.session_state.full_responses:
+        with st.chat_message("assistant", avatar=assistant_avatar):
+            st.write("Hi! How can I help you today?")
 
     # User input for new query
     if user_query := st.chat_input("What would you like to know about the OEE data?"):
