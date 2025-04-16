@@ -3561,7 +3561,7 @@ if st.session_state.initialized:
             with st.chat_message("user", avatar=user_avatar):
                 st.markdown(
                     f"""
-                    <div style='display: flex; justify-content: flex-end;'>
+                    <div style='display: flex;'>
                         <div style='background: none; padding: 0.5rem 0; text-align: right; font-size: 1rem; color: white;'>{selected_response.get("user_query", "")}</div>
                     </div>
                     """,
@@ -3628,7 +3628,7 @@ if st.session_state.initialized:
             with st.chat_message("user", avatar=user_avatar):
                 st.markdown(
                     f"""
-                    <div style='display: flex; justify-content: flex-end;'>
+                    <div style='display: flex;'>
                         <div style='background: none; padding: 0.5rem 0; text-align: right; font-size: 1rem; color: black;'>{user_query}</div>
                     </div>
                     """,
