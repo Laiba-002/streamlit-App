@@ -3019,8 +3019,8 @@ if st.session_state.initialized:
           
         # Process and display the chat in the chat container
         with chat_container:
-        # Your chat display code here
-        pass
+           # Your chat display code here
+           pass
 
 
      # Only show welcome message if there are no messages
