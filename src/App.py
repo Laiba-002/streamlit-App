@@ -3019,10 +3019,10 @@ if st.session_state.initialized:
 
 
       
-        # # Use the placeholder to display the new user query and spinner
-        # with new_message_placeholder.container():
-        #     with st.chat_message("user", avatar=user_avatar):
-        #         st.write(user_query)
+        # Use the placeholder to display the new user query and spinner
+        with new_message_placeholder.container():
+            with st.chat_message("user", avatar=user_avatar):
+                st.write(user_query)
 
             # Show spinner while generating response
             with st.spinner("Generating response..."):
