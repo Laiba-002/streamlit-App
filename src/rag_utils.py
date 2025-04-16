@@ -85,22 +85,104 @@ def create_document_chunks(df, chunk_size=5):
 
     return chunks
 
-# Initialize vector store function
+# # Initialize vector store function
+
+# def initialize_vector_store(df, table_name=None):
+#     """Initialize the vector store with embeddings from the dataframe."""
+#     # Define the file path where embeddings will be stored
+#     embeddings_file = "embeddings_store1.pkl"
+#     metadata_file = "embeddings_metadata.json"
+
+#     # Flag to track if we need to regenerate embeddings
+#     regenerate_embeddings = False
+
+#     # Current data information for checking changes
+#     current_columns = list(df.columns)
+#     current_table = table_name or "OEESHIFTWISE"  # Default if not provided
+
+#     # Check if metadata exists to detect schema changes
+#     if os.path.exists(metadata_file):
+#         try:
+#             with open(metadata_file, 'r') as file:
+#                 metadata = json.load(file)
+
+#             # Check if schema or table has changed
+#             if metadata.get("table_name") != current_table:
+#                 st.warning(f"Table name has changed from {metadata.get('table_name')} to {current_table}. Will regenerate embeddings.")
+#                 regenerate_embeddings = True
+#             elif set(metadata.get("columns", [])) != set(current_columns):
+#                 st.warning("Table schema has changed. Will regenerate embeddings.")
+#                 regenerate_embeddings = True
+#         except Exception as e:
+#             st.warning(f"Could not read metadata file: {str(e)}. Will check embeddings file.")
+
+#     # Check if embeddings file already exists
+#     if os.path.exists(embeddings_file) and not regenerate_embeddings:
+#         progress_placeholder = st.empty()
+#         progress_placeholder.text("Loading existing embeddings...")
+#         try:
+#             # Load stored embeddings from file
+#             with open(embeddings_file, 'rb') as file:
+#                 vector_store = pickle.load(file)
+#                 progress_placeholder.text("Embeddings loaded successfully!")
+#                 return vector_store
+#         except Exception as e:
+#             progress_placeholder.error(f"Error loading embeddings: {str(e)}. Will create new embeddings.")
+
+#     # Create document chunks from dataframe
+#     chunks = create_document_chunks(df)
+
+#     # Create embeddings for each chunk using OpenAI
+#     embeddings = []
+#     # Using a plain progress message instead of nested status
+#     progress_placeholder = st.empty()
+#     for i, chunk in enumerate(chunks):
+#         progress_placeholder.text(f"Creating embeddings... ({i+1}/{len(chunks)})")
+#         embedding = get_openai_embedding(chunk)
+#         embeddings.append(embedding)
+
+#     # Create vector store
+#     vector_store = {
+#         "embeddings": embeddings,
+#         "chunks": chunks
+#     }
+
+#     # Save embeddings to file
+#     try:
+#         with open(embeddings_file, 'wb') as file:
+#             pickle.dump(vector_store, file)
+
+#         # Save metadata to track schema changes
+#         metadata = {
+#             "table_name": current_table,
+#             "columns": current_columns,
+#             "created_at": str(pd.Timestamp.now()),
+#             "num_chunks": len(chunks),
+#             "num_embeddings": len(embeddings)
+#         }
+#         with open(metadata_file, 'w') as file:
+#             json.dump(metadata, file, indent=2)
+
+#         progress_placeholder.text("Embeddings created and saved successfully!")
+#     except Exception as e:
+#         progress_placeholder.warning(f"Could not save embeddings to file: {str(e)}")
+#         progress_placeholder.text("Embeddings created but not saved!")
+
+#     return vector_store
+
 
 def initialize_vector_store(df, table_name=None):
     """Initialize the vector store with embeddings from the dataframe."""
-    # Define the file path where embeddings will be stored
-    embeddings_file = "embeddings_store1.pkl"
+    # Define the file paths for embeddings and metadata
+    embeddings_file = "embeddings_store3.pkl"
     metadata_file = "embeddings_metadata.json"
-
-    # Flag to track if we need to regenerate embeddings
-    regenerate_embeddings = False
 
     # Current data information for checking changes
     current_columns = list(df.columns)
-    current_table = table_name or "OEESHIFTWISE"  # Default if not provided
+    current_table = table_name or "OEESHIFTWISE_AI"  # Default table name if not provided
 
     # Check if metadata exists to detect schema changes
+    regenerate_embeddings = False
     if os.path.exists(metadata_file):
         try:
             with open(metadata_file, 'r') as file:
@@ -108,51 +190,46 @@ def initialize_vector_store(df, table_name=None):
 
             # Check if schema or table has changed
             if metadata.get("table_name") != current_table:
-                st.warning(f"Table name has changed from {metadata.get('table_name')} to {current_table}. Will regenerate embeddings.")
+                st.warning(f"Table name has changed from {metadata.get('table_name')} to {current_table}. Regenerating embeddings.")
                 regenerate_embeddings = True
             elif set(metadata.get("columns", [])) != set(current_columns):
-                st.warning("Table schema has changed. Will regenerate embeddings.")
+                st.warning("Table schema has changed. Regenerating embeddings.")
                 regenerate_embeddings = True
         except Exception as e:
-            st.warning(f"Could not read metadata file: {str(e)}. Will check embeddings file.")
+            st.warning(f"Could not read metadata file: {str(e)}. Regenerating embeddings.")
 
-    # Check if embeddings file already exists
+    # Check if embeddings file already exists and no regeneration is needed
     if os.path.exists(embeddings_file) and not regenerate_embeddings:
-        progress_placeholder = st.empty()
-        progress_placeholder.text("Loading existing embeddings...")
         try:
-            # Load stored embeddings from file
             with open(embeddings_file, 'rb') as file:
                 vector_store = pickle.load(file)
-                progress_placeholder.text("Embeddings loaded successfully!")
-                return vector_store
+            st.success("Loaded cached embeddings successfully!")
+            return vector_store
         except Exception as e:
-            progress_placeholder.error(f"Error loading embeddings: {str(e)}. Will create new embeddings.")
+            st.error(f"Failed to load cached embeddings: {str(e)}. Regenerating embeddings.")
 
-    # Create document chunks from dataframe
+    # Create document chunks from the dataframe
     chunks = create_document_chunks(df)
 
-    # Create embeddings for each chunk using OpenAI
+    # Generate embeddings for each chunk using OpenAI
     embeddings = []
-    # Using a plain progress message instead of nested status
     progress_placeholder = st.empty()
     for i, chunk in enumerate(chunks):
         progress_placeholder.text(f"Creating embeddings... ({i+1}/{len(chunks)})")
         embedding = get_openai_embedding(chunk)
         embeddings.append(embedding)
 
-    # Create vector store
+    # Create the vector store
     vector_store = {
         "embeddings": embeddings,
         "chunks": chunks
     }
 
-    # Save embeddings to file
+    # Save embeddings and metadata to files
     try:
         with open(embeddings_file, 'wb') as file:
             pickle.dump(vector_store, file)
 
-        # Save metadata to track schema changes
         metadata = {
             "table_name": current_table,
             "columns": current_columns,
@@ -163,10 +240,10 @@ def initialize_vector_store(df, table_name=None):
         with open(metadata_file, 'w') as file:
             json.dump(metadata, file, indent=2)
 
-        progress_placeholder.text("Embeddings created and saved successfully!")
+        st.success("Embeddings created and saved successfully!")
     except Exception as e:
-        progress_placeholder.warning(f"Could not save embeddings to file: {str(e)}")
-        progress_placeholder.text("Embeddings created but not saved!")
+        st.warning(f"Could not save embeddings to file: {str(e)}")
+        st.text("Embeddings created but not saved!")
 
     return vector_store
 
