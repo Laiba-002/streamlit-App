@@ -3090,7 +3090,7 @@ if st.session_state.initialized:
                                 st.session_state.chat_history.append({"role": "assistant", "content": response_content})
 
                         elif result_df is not None and result_df.empty:
-                            no_data_msg = "I apologize, no results found regarding your query."
+                            no_data_msg = "I apologize, no results found regarding your query. Try rephrasing your question or try it later."
                             with st.chat_message("assistant", avatar=assistant_avatar):
                                 st.warning(no_data_msg)
                             st.session_state.messages.append({"role": "assistant", "content": no_data_msg})
@@ -3107,7 +3107,7 @@ if st.session_state.initialized:
                             if st.session_state.debug_mode:
                                 final_response = f"I generated this SQL query, but there was an error executing it:\n```sql\n{sql_query}\n```"
                             else:
-                                final_response = f"I couldn't retrieve the data you asked for. There might be an issue with the query or connection."
+                                final_response = f"I couldn't retrieve the data you asked for. There might be an issue with the query or connection.Try rephrasing your question or try it later."
                             with st.chat_message("assistant", avatar=assistant_avatar):
                                 st.write(final_response)
                             st.session_state.messages.append({"role": "assistant", "content": final_response})
