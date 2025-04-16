@@ -2998,36 +2998,27 @@ if st.session_state.initialized:
                 if latest.get("visualization_notes"):
                     st.caption(latest["visualization_notes"])                
     # Create a separate placeholder for the new query and response
-    # new_message_placeholder = st.empty()
-    # # 🌟 Welcome message before chat starts
-    # # if not st.session_state.full_responses:
-    # if "messages" not in st.session_state or len(st.session_state.messages) == 0:
-    #     with st.chat_message("assistant", avatar=assistant_avatar):
-    #         st.write("Hi! How can I help you today?")
-    # Create containers for different parts of the UI
-    welcome_container = st.container()
-    chat_container = st.container()
+    new_message_placeholder = st.empty()
+    # 🌟 Welcome message before chat starts
+    # if not st.session_state.full_responses:
+    if "messages" not in st.session_state or len(st.session_state.messages) == 0:
+        with st.chat_message("assistant", avatar=assistant_avatar):
+            st.write("Hi! How can I help you today?")
+    
+   
     
     # User input for new query
     if user_query := st.chat_input("What would you like to know about the OEE data?"):
-        # Clear the welcome message by emptying its container
-        welcome_container.empty()
+        
         # Add to display messages
         st.session_state.messages.append({"role": "user", "content": user_query})
         if st.session_state.show_history:
             st.session_state.chat_history.append({"role": "user", "content": user_query})
           
-        # Process and display the chat in the chat container
-        with chat_container:
-           # Your chat display code here
-           pass
+        
 
 
-     # Only show welcome message if there are no messages
-    elif "messages" not in st.session_state or len(st.session_state.messages) == 0:
-      with welcome_container:
-        with st.chat_message("assistant", avatar=assistant_avatar):
-            st.write("Hi! How can I help you today?")   
+      
         # # Use the placeholder to display the new user query and spinner
         # with new_message_placeholder.container():
         #     with st.chat_message("user", avatar=user_avatar):
