@@ -3344,7 +3344,7 @@ def create_visualization(result_df, vis_recommendation):
         viz_type = vis_recommendation.get("viz_type", "none")
         if viz_type == "none" or len(result_df) == 0:
             return None
-        custom_palette = ["#242bf0", "#7ECF9A"]
+        # custom_palette = ["#242bf0", "#7ECF9A"]
         x_col = vis_recommendation.get("x_column")
         y_col = vis_recommendation.get("y_column")
         color_col = vis_recommendation.get("color_column")
@@ -3361,17 +3361,17 @@ def create_visualization(result_df, vis_recommendation):
         if viz_type == "bar":
             if len(result_df) > 25:
                 result_df = result_df.groupby(x_col, as_index=False)[y_col].agg('sum')
-            fig = px.bar(result_df, x=x_col, y=y_col, color=color_col, title=title, color_discrete_sequence=custom_palette)
+            fig = px.bar(result_df, x=x_col, y=y_col, color=color_col, title=title)
         elif viz_type == "line":
             if pd.api.types.is_datetime64_any_dtype(result_df[x_col]) or pd.api.types.is_numeric_dtype(result_df[x_col]):
                 result_df = result_df.sort_values(by=x_col)
-            fig = px.line(result_df, x=x_col, y=y_col, color=color_col, title=title, markers=True, color_discrete_sequence=custom_palette)
+            fig = px.line(result_df, x=x_col, y=y_col, color=color_col, title=title, markers=True)
         elif viz_type == "scatter":
-            fig = px.scatter(result_df, x=x_col, y=y_col, color=color_col, title=title, color_discrete_sequence=custom_palette)
+            fig = px.scatter(result_df, x=x_col, y=y_col, color=color_col, title=title)
         elif viz_type == "pie":
-            fig = px.pie(result_df, names=x_col, values=y_col, title=title, color_discrete_sequence=custom_palette)
+            fig = px.pie(result_df, names=x_col, values=y_col, title=title)
         elif viz_type == "histogram":
-            fig = px.histogram(result_df, x=x_col, title=title, color_discrete_sequence=custom_palette)
+            fig = px.histogram(result_df, x=x_col, title=title)
         elif viz_type == "heatmap":
             if color_col:
                 pivot_df = result_df.pivot_table(values=color_col, index=y_col, columns=x_col, aggfunc='mean')
@@ -3580,8 +3580,9 @@ if st.session_state.initialized:
                     st.dataframe(selected_response["data"])
                 if selected_response.get("visualization") is not None:
                     st.plotly_chart(selected_response["visualization"], use_container_width=True, key=f"fig_chart_{st.session_state.selected_history_index}")
-                    if selected_response.get("visualization_notes"):
-                        st.caption(selected_response["visualization_notes"])
+                    # if selected_response.get("visualization_notes"):
+                        # st.caption(selected_response["visualization_notes"])
+                        
         else:
             # Display all chat history from full_responses if no specific item is selected
             if st.session_state.full_responses:
@@ -3608,8 +3609,8 @@ if st.session_state.initialized:
                             st.dataframe(resp["data"])
                         if resp.get("visualization") is not None:
                             st.plotly_chart(resp["visualization"], use_container_width=True, key=f"fig_chart_{idx}")
-                            if resp.get("visualization_notes"):
-                                st.caption(resp["visualization_notes"])
+                            # if resp.get("visualization_notes"):
+                                # st.caption(resp["visualization_notes"])
             else:
                 if not st.session_state.has_started:
                     with st.chat_message("assistant", avatar=assistant_avatar):
@@ -3685,18 +3686,18 @@ if st.session_state.initialized:
                                 if fig:
                                     st.plotly_chart(fig, use_container_width=True, key=f"main_fig_chart_{len(st.session_state.full_responses)}")
                                     description = vis_recommendation.get("description", "")
-                                    if description:
-                                        st.caption(f"Visualization notes: {description}")
+                                    # if description:
+                                        # st.caption(f"Visualization notes: {description}")
 
                             response_content = final_response + "[Results shown in table format and visualization]"
                             st.session_state.messages.append({"role": "assistant", "content": response_content})
-                            visualization_notes = f"Visualization notes: {vis_recommendation.get('description')}" if fig and vis_recommendation.get("description") else ""
+                            # visualization_notes = f"Visualization notes: {vis_recommendation.get('description')}" if fig and vis_recommendation.get("description") else ""
                             st.session_state.full_responses.append({
                                 "user_query": user_query,
                                 "text_response": final_response,
                                 "data": result_df,
                                 "visualization": fig,
-                                "visualization_notes": visualization_notes,
+                                # "visualization_notes": visualization_notes,
                                 "sql_query": sql_query if st.session_state.debug_mode else None
                             })
                             if st.session_state.show_history:
@@ -3712,7 +3713,7 @@ if st.session_state.initialized:
                                 "text_response": no_data_msg,
                                 "data": None,
                                 "visualization": None,
-                                "visualization_notes": None,
+                                # "visualization_notes": None,
                                 "sql_query": sql_query if st.session_state.debug_mode else None
                             })
                             if st.session_state.show_history:
@@ -3737,7 +3738,7 @@ if st.session_state.initialized:
                                 "text_response": final_response,
                                 "data": None,
                                 "visualization": None,
-                                "visualization_notes": None,
+                                # "visualization_notes": None,
                                 "sql_query": sql_query if st.session_state.debug_mode else None
                             })
                             if st.session_state.show_history:
@@ -3758,7 +3759,7 @@ if st.session_state.initialized:
                             "text_response": rag_response,
                             "data": None,
                             "visualization": None,
-                            "visualization_notes": None
+                            # "visualization_notes": None
                         })
                         if st.session_state.show_history:
                             st.session_state.chat_history.append({"role": "assistant", "content": rag_response})
@@ -3786,7 +3787,7 @@ if st.session_state.initialized:
                         "text_response": llm_response,
                         "data": None,
                         "visualization": None,
-                        "visualization_notes": None
+                        # "visualization_notes": None
                     })
                     if st.session_state.show_history:
                         st.session_state.chat_history.append({"role": "assistant", "content": llm_response})
