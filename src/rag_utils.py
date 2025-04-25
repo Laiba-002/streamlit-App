@@ -219,7 +219,7 @@ def process_query_with_rag(user_query, vector_store, table_name, schema_name, da
 
     {combined_context}
 
-    Note: If the user's query seems vague (e.g., 'give all details'), generate a query that limits results to 100 rows max.
+   
 
     The user's current query is: "{user_query}"
 
